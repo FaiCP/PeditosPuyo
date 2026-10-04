@@ -98,6 +98,7 @@ public class AssignmentsController : ControllerBase
             return BadRequest(new { isSuccess = false, error = "Rider is busy", code = "RIDER_BUSY" });
 
         var existingAssignment = await _context.OrderAssignments
+            .IgnoreQueryFilters()
             .AnyAsync(a => a.RequestId == req.RequestId && a.Status != AssignmentStatus.Rejected);
 
         if (existingAssignment)

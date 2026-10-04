@@ -56,7 +56,7 @@ public class AuthController : ControllerBase
         var token = _jwtTokenGenerator.GenerateToken(
             user.Id, user.Email!, user.Role, user.TenantId, companyId, restaurantId, riderId);
 
-        return Ok(new LoginResponse(token, user.Id, user.Role, user.TenantId, user.FullName, user.Email!));
+        return Ok(new LoginResponse(token, user.Id, user.Role, user.TenantId, user.FullName, user.Email!, companyId, restaurantId, riderId));
     }
 
     [HttpPost("register")]
@@ -173,6 +173,6 @@ public class AuthController : ControllerBase
         var token = _jwtTokenGenerator.GenerateToken(
             user.Id, user.Email!, user.Role, user.TenantId, companyId, restaurantId, riderId);
 
-        return Ok(new LoginResponse(token, user.Id, user.Role, user.TenantId, user.FullName, user.Email!));
+        return Ok(new LoginResponse(token, user.Id, user.Role, user.TenantId, user.FullName, user.Email!, companyId, restaurantId, riderId));
     }
 }

@@ -29,7 +29,7 @@ Límites mensuales por modelo: **$15 / $30 / $60** (20% por 5 horas, 50% por sem
 | 2. Backend .NET | **Kimi K2.7 Code** (único principal) | $0.95/$4.00 | $60 | 1,350 |
 | 3. PWA | **Qwen3.7 Plus** | $0.40/$1.60 | $60 | 4,300 |
 | 4. Flutter | **Qwen3.7 Plus** | $0.40/$1.60 | $60 | 4,300 |
-| 5. Tests | **Por definir** al llegar a la fase | — | — | — |
+| 5. Tests | **Kimi K3** | $3.00/$15.00 | $15 | 110 |
 
 ---
 
@@ -47,8 +47,8 @@ Componentes React, integración WebSocket, Web Audio API, Tailwind CSS, hooks de
 ### Fase 4 — Flutter (Qwen3.7 Plus)
 pubspec.yaml, background_service, FCM, modal de orden, widgets UI.
 
-### Fase 5 — Tests (Por definir)
-El usuario decide el modelo al llegar a esta fase, según tokens usados y contexto acumulado.
+### Fase 5 — Tests (Kimi K3)
+Suite xUnit + FluentAssertions + Moq + EF Core InMemory. 99 tests: unit (JWT, Result, entities), integración (controllers), flujo E2E completo, aislamiento multi-tenant.
 
 ---
 

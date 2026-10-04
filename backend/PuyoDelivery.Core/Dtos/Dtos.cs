@@ -3,7 +3,7 @@ namespace PuyoDelivery.Core.Dtos;
 public record LoginRequest(string Email, string Password);
 public record RegisterRequest(string FullName, string Email, string Phone, string Password, string Role);
 
-public record LoginResponse(string Token, string UserId, string Role, Guid? TenantId, string FullName, string Email);
+public record LoginResponse(string Token, string UserId, string Role, Guid? TenantId, string FullName, string Email, Guid? CompanyId = null, Guid? RestaurantId = null, Guid? RiderId = null);
 
 public record CompanyDto(Guid Id, string Name, string Slug, decimal MonthlyRatePerDriver, int RiderLimit, bool IsActive);
 public record CreateCompanyRequest(string Name, string Slug, decimal MonthlyRatePerDriver, int RiderLimit);

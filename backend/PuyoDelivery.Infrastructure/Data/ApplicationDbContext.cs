@@ -105,14 +105,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         });
 
         // Global Query Filter para multi-tenancy (null = mostrar todos, para endpoints públicos)
-        builder.Entity<DeliveryCompany>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId.Value);
-        builder.Entity<Subscription>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId.Value);
-        builder.Entity<CompanyAdmin>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId.Value);
-        builder.Entity<Rider>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId.Value);
-        builder.Entity<Restaurant>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId.Value);
-        builder.Entity<MenuItem>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId.Value);
-        builder.Entity<DeliveryRequest>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId.Value);
-        builder.Entity<OrderAssignment>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId.Value);
+        builder.Entity<DeliveryCompany>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
+        builder.Entity<Subscription>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
+        builder.Entity<CompanyAdmin>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
+        builder.Entity<Rider>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
+        builder.Entity<Restaurant>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
+        builder.Entity<MenuItem>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
+        builder.Entity<DeliveryRequest>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
+        builder.Entity<OrderAssignment>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
     }
 }
 
