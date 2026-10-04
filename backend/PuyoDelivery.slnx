@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="PuyoDelivery.API/PuyoDelivery.API.csproj" />
+  <Project Path="PuyoDelivery.Core/PuyoDelivery.Core.csproj" />
+  <Project Path="PuyoDelivery.Infrastructure/PuyoDelivery.Infrastructure.csproj" />
+  <Project Path="PuyoDelivery.Tests/PuyoDelivery.Tests.csproj" />
+</Solution>

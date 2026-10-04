@@ -1,0 +1,42 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.nupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node
+node_modules/
+dist/
+.env
+.env.local
+.env.production
+
+# Flutter
+rider_app/.dart_tool/
+rider_app/.packages
+rider_app/build/
+rider_app/.flutter-plugins
+rider_app/.flutter-plugins-dependencies
+rider_app/android/.gradle/
+rider_app/android/local.properties
+*.apk
+*.aab
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+*.tmp
+*.log
