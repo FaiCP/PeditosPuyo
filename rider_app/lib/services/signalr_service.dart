@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
@@ -36,10 +37,10 @@ class SignalRService {
         }
       },
       onError: (error) {
-        print('WebSocket error: $error');
+        debugPrint('WebSocket error: $error');
       },
       onDone: () {
-        print('WebSocket closed');
+        debugPrint('WebSocket closed');
       },
     );
   }

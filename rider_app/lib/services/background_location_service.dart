@@ -1,90 +1,74 @@
-import 'dart:convert';
-import 'package:flutter_background_service/flutter_background_service.dart';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import '../config/api_config.dart';
-import '../config/constants.dart';
+import 'api_service.dart';
 
 class BackgroundLocationService {
-  static Future<void> initialize() async {
-    await FlutterBackgroundService.configure(
-      androidNotificationChannel: const AndroidNotificationChannel(
-        'Puyo Delivery Location',
-        'Puyo Delivery Location Service',
-        description: 'Tracks your location while delivering orders',
-        importance: Importance.low,
-      ),
-      iosNotificationOptions: const IOSNotificationOptions(),
-      foregroundServiceNotificationOptions: const ForegroundServiceNotificationOptions(
-        notificationId: 92901,
-      ),
-      androidConfiguration: AndroidConfiguration(
-        onStart: onStart,
-        isForegroundMode: true,
-        autoStart: false,
-      ),
+  static final BackgroundLocationService _instance =
+      BackgroundLocationService._internal();
+  factory BackgroundLocationService() => _instance;
+  BackgroundLocationService._internal();
+
+  final _apiService = ApiService();
+  Timer? _timer;
+  bool _isRunning = false;
+
+  bool get isRunning => _isRunning;
+
+  Future<void> startService(String riderId) async {
+    if (riderId.isEmpty || _isRunning) return;
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return;
+      }
+
+      if (permission == LocationPermission.deniedForever) return;
+
+      _isRunning = true;
+      _startPeriodicUpdates(riderId);
+
+      debugPrint('Background location service started for rider: $riderId');
+    } catch (e) {
+      debugPrint('Error starting background location: $e');
+    }
+  }
+
+  void _startPeriodicUpdates(String riderId) {
+    _sendLocation(riderId);
+    _timer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _sendLocation(riderId),
     );
   }
 
-  static Future<void> onStart(ServiceInstance service) async {
-    if (service is AndroidServiceInstance) {
-      service.on('setAsForeground').listen((event) {
-        service.setAsForegroundService();
+  Future<void> _sendLocation(String riderId) async {
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      await _apiService.put('/riders/$riderId/location', {
+        'lat': position.latitude,
+        'lng': position.longitude,
       });
-      service.on('setAsBackground').listen((event) {
-        service.setAsBackgroundService();
-      });
+
+      debugPrint(
+          'Background location sent: ${position.latitude}, ${position.longitude}');
+    } catch (e) {
+      debugPrint('Error sending background location: $e');
     }
-
-    service.on('stopService').listen((event) {
-      service.stopSelf();
-    });
-
-    Timer.periodic(const Duration(seconds: 5), (timer) async {
-      try {
-        final position = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.high,
-          ),
-        );
-
-        final prefs = await SharedPreferences.getInstance();
-        final token = prefs.getString(Constants.tokenKey);
-        final riderId = prefs.getString(Constants.riderIdKey);
-
-        if (token != null && riderId != null) {
-          await http.post(
-            Uri.parse('${ApiConfig.baseUrl}/driver/location'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode({
-              'lat': position.latitude,
-              'lng': position.longitude,
-            }),
-          );
-        }
-
-        service.invoke(
-          'update',
-          {
-            'lat': position.latitude,
-            'lng': position.longitude,
-          },
-        );
-      } catch (e) {
-        // Handle error silently
-      }
-    });
   }
 
-  static Future<void> startService() async {
-    await FlutterBackgroundService().startService();
-  }
-
-  static Future<void> stopService() async {
-    await FlutterBackgroundService().stopService();
+  Future<void> stopService() async {
+    _timer?.cancel();
+    _timer = null;
+    _isRunning = false;
+    debugPrint('Background location service stopped');
   }
 }

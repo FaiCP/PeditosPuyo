@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../config/constants.dart';
+import 'package:vibration/vibration.dart';
 
 class NewOrderDialog extends StatefulWidget {
+  final String assignmentId;
   final String restaurantName;
   final String pickupAddress;
   final String deliveryAddress;
@@ -10,6 +11,7 @@ class NewOrderDialog extends StatefulWidget {
 
   const NewOrderDialog({
     super.key,
+    required this.assignmentId,
     required this.restaurantName,
     required this.pickupAddress,
     required this.deliveryAddress,
@@ -28,6 +30,17 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
   void initState() {
     super.initState();
     _startTimer();
+    _vibrate();
+  }
+
+  void _vibrate() async {
+    try {
+      if (await Vibration.hasVibrator() ?? false) {
+        Vibration.vibrate(duration: 500);
+      }
+    } catch (e) {
+      debugPrint('Vibration error: $e');
+    }
   }
 
   void _startTimer() {
@@ -60,19 +73,24 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Text('Nueva Carrera'),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: _secondsRemaining <= 5 ? Colors.red : Colors.orange,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
               '${_secondsRemaining}s',
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
             ),
           ),
         ],
@@ -102,7 +120,15 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
           _InfoRow(
             icon: Icons.straighten,
             label: 'Distancia',
-            value: '${widget.distanceKm} km',
+            value: '${widget.distanceKm.toStringAsFixed(1)} km',
+          ),
+          const SizedBox(height: 8),
+          LinearProgressIndicator(
+            value: _secondsRemaining / 15,
+            backgroundColor: Colors.grey.shade200,
+            valueColor: AlwaysStoppedAnimation(
+              _secondsRemaining <= 5 ? Colors.red : Colors.orange,
+            ),
           ),
         ],
       ),
@@ -114,7 +140,11 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
         ),
         ElevatedButton(
           onPressed: _accept,
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
           child: const Text('Aceptar'),
         ),
       ],
@@ -144,8 +174,10 @@ class _InfoRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+              Text(label,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(value,
+                  style: const TextStyle(fontWeight: FontWeight.w500)),
             ],
           ),
         ),

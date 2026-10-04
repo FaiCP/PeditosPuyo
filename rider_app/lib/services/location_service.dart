@@ -1,61 +1,75 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'api_service.dart';
-import 'signalr_service.dart';
-import '../config/constants.dart';
 
 class LocationService {
-  final ApiService _api = ApiService();
-  final SignalRService _signalR = SignalRService();
-  StreamSubscription<Position>? _subscription;
+  final _apiService = ApiService();
+  Timer? _locationTimer;
   bool _isTracking = false;
 
   bool get isTracking => _isTracking;
 
   Future<void> startTracking(String riderId) async {
-    if (_isTracking) return;
+    if (riderId.isEmpty) return;
 
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      throw Exception('Location services are disabled');
-    }
-
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        throw Exception('Location permissions denied');
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      throw Exception('Location permissions permanently denied');
-    }
-
-    _isTracking = true;
-
-    _subscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
-      ),
-    ).listen((position) {
-      _sendLocation(position.latitude, position.longitude, riderId);
-    });
-  }
-
-  Future<void> stopTracking() async {
-    _subscription?.cancel();
-    _subscription = null;
-    _isTracking = false;
-  }
-
-  Future<void> _sendLocation(double lat, double lng, String riderId) async {
     try {
-      await _api.post('/driver/location', {'lat': lat, 'lng': lng});
-      _signalR.sendLocation(riderId, lat, lng);
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        debugPrint('Location services are disabled');
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          debugPrint('Location permissions are denied');
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        debugPrint('Location permissions are permanently denied');
+        return;
+      }
+
+      _isTracking = true;
+      _sendLocation(riderId);
+
+      _locationTimer = Timer.periodic(
+        const Duration(seconds: 5),
+        (_) => _sendLocation(riderId),
+      );
+
+      debugPrint('Location tracking started for rider: $riderId');
     } catch (e) {
-      // Silently fail, will retry on next update
+      debugPrint('Error starting location tracking: $e');
     }
+  }
+
+  Future<void> _sendLocation(String riderId) async {
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      await _apiService.put('/riders/$riderId/location', {
+        'lat': position.latitude,
+        'lng': position.longitude,
+      });
+
+      debugPrint(
+          'Location sent: ${position.latitude}, ${position.longitude}');
+    } catch (e) {
+      debugPrint('Error sending location: $e');
+    }
+  }
+
+  void stopTracking() {
+    _locationTimer?.cancel();
+    _locationTimer = null;
+    _isTracking = false;
+    debugPrint('Location tracking stopped');
   }
 }
