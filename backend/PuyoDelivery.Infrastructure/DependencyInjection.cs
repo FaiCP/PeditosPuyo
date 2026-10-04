@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PuyoDelivery.Core.Interfaces;
 using PuyoDelivery.Infrastructure.Data;
@@ -8,7 +9,7 @@ namespace PuyoDelivery.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services)
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddHttpContextAccessor();
 
@@ -18,7 +19,14 @@ public static class DependencyInjection
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-        services.AddScoped<JwtTokenGenerator>();
+        services.AddScoped<JwtTokenGenerator>(sp =>
+        {
+            var secretKey = configuration["Jwt:SecretKey"] ?? "DefaultSecretKeyForDev2026!DefaultSecretKeyForDev2026!";
+            var issuer = configuration["Jwt:Issuer"] ?? "PuyoDelivery";
+            var audience = configuration["Jwt:Audience"] ?? "PuyoDeliveryApp";
+            return new JwtTokenGenerator(secretKey, issuer, audience);
+        });
+
         services.AddScoped<GeocodingService>();
         services.AddHttpClient<GeocodingService>();
 

@@ -35,7 +35,15 @@ public class AssignmentsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<AssignmentDto>>> GetAll()
     {
-        var assignments = await BuildQueryable().ToListAsync();
+        var assignments = await _context.OrderAssignments
+            .IgnoreQueryFilters()
+            .Include(a => a.Rider)
+            .Include(a => a.Request).ThenInclude(r => r.Restaurant)
+            .Select(a => new AssignmentDto(
+                a.Id, a.RequestId, a.RiderId, a.Rider.FullName,
+                a.Request.Restaurant.Name, a.Status.ToString(), a.RejectionReason,
+                a.CreatedAt, a.AcceptedAt, a.RejectedAt, a.DeliveredAt))
+            .ToListAsync();
         return Ok(assignments);
     }
 
@@ -43,8 +51,15 @@ public class AssignmentsController : ControllerBase
     [Authorize(Roles = "Rider")]
     public async Task<ActionResult<IEnumerable<AssignmentDto>>> GetRiderPending()
     {
-        var assignments = await BuildQueryable()
-            .Where(a => a.RiderId == _tenant.RiderId && a.Status == "Pending")
+        var assignments = await _context.OrderAssignments
+            .IgnoreQueryFilters()
+            .Include(a => a.Rider)
+            .Include(a => a.Request).ThenInclude(r => r.Restaurant)
+            .Where(a => a.RiderId == _tenant.RiderId && a.Status == AssignmentStatus.Pending)
+            .Select(a => new AssignmentDto(
+                a.Id, a.RequestId, a.RiderId, a.Rider.FullName,
+                a.Request.Restaurant.Name, a.Status.ToString(), a.RejectionReason,
+                a.CreatedAt, a.AcceptedAt, a.RejectedAt, a.DeliveredAt))
             .ToListAsync();
 
         return Ok(assignments);
@@ -54,9 +69,16 @@ public class AssignmentsController : ControllerBase
     [Authorize(Roles = "Rider")]
     public async Task<ActionResult<IEnumerable<AssignmentDto>>> GetRiderActive()
     {
-        var assignments = await BuildQueryable()
+        var assignments = await _context.OrderAssignments
+            .IgnoreQueryFilters()
+            .Include(a => a.Rider)
+            .Include(a => a.Request).ThenInclude(r => r.Restaurant)
             .Where(a => a.RiderId == _tenant.RiderId &&
-                       (a.Status == "Accepted" || a.Status == "InTransit"))
+                       (a.Status == AssignmentStatus.Accepted || a.Status == AssignmentStatus.InTransit))
+            .Select(a => new AssignmentDto(
+                a.Id, a.RequestId, a.RiderId, a.Rider.FullName,
+                a.Request.Restaurant.Name, a.Status.ToString(), a.RejectionReason,
+                a.CreatedAt, a.AcceptedAt, a.RejectedAt, a.DeliveredAt))
             .ToListAsync();
 
         return Ok(assignments);
@@ -66,10 +88,10 @@ public class AssignmentsController : ControllerBase
     [Authorize(Roles = "CompanyAdmin")]
     public async Task<ActionResult<AssignmentDto>> Create([FromBody] CreateAssignmentRequest req)
     {
-        var request = await _context.DeliveryRequests.FindAsync(req.RequestId);
+        var request = await _context.DeliveryRequests.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == req.RequestId);
         if (request == null) return NotFound(new { isSuccess = false, error = "Delivery request not found" });
 
-        var rider = await _context.Riders.FindAsync(req.RiderId);
+        var rider = await _context.Riders.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == req.RiderId);
         if (rider == null) return NotFound(new { isSuccess = false, error = "Rider not found" });
 
         if (rider.IsBusy)
@@ -101,7 +123,7 @@ public class AssignmentsController : ControllerBase
         await _context.SaveChangesAsync();
 
         // Obtener datos para la notificación
-        var restaurant = await _context.Restaurants.FindAsync(request.RestaurantId);
+        var restaurant = await _context.Restaurants.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == request.RestaurantId);
 
         // Notificar al rider por SignalR
         await _riderHub.Clients.Group($"rider-{req.RiderId}").SendAsync("newAssignment", new
@@ -133,14 +155,14 @@ public class AssignmentsController : ControllerBase
     [Authorize(Roles = "Rider")]
     public async Task<ActionResult<AssignmentDto>> Accept(Guid id)
     {
-        var assignment = await _context.OrderAssignments.FindAsync(id);
+        var assignment = await _context.OrderAssignments.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Id == id);
         if (assignment == null) return NotFound();
         if (assignment.RiderId != _tenant.RiderId) return Forbid();
 
         assignment.Status = AssignmentStatus.Accepted;
         assignment.AcceptedAt = DateTime.UtcNow;
 
-        var request = await _context.DeliveryRequests.FindAsync(assignment.RequestId);
+        var request = await _context.DeliveryRequests.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == assignment.RequestId);
         if (request != null)
         {
             request.Status = DeliveryRequestStatus.Accepted;
@@ -165,7 +187,7 @@ public class AssignmentsController : ControllerBase
     [Authorize(Roles = "Rider")]
     public async Task<ActionResult<AssignmentDto>> Reject(Guid id, [FromBody] RejectAssignmentRequest req)
     {
-        var assignment = await _context.OrderAssignments.FindAsync(id);
+        var assignment = await _context.OrderAssignments.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Id == id);
         if (assignment == null) return NotFound();
         if (assignment.RiderId != _tenant.RiderId) return Forbid();
 
@@ -173,7 +195,7 @@ public class AssignmentsController : ControllerBase
         assignment.RejectedAt = DateTime.UtcNow;
         assignment.RejectionReason = req.Reason;
 
-        var request = await _context.DeliveryRequests.FindAsync(assignment.RequestId);
+        var request = await _context.DeliveryRequests.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == assignment.RequestId);
         if (request != null)
         {
             request.Status = DeliveryRequestStatus.Pending;
@@ -181,7 +203,7 @@ public class AssignmentsController : ControllerBase
         }
 
         // Liberar rider
-        var rider = await _context.Riders.FindAsync(assignment.RiderId);
+        var rider = await _context.Riders.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == assignment.RiderId);
         if (rider != null) rider.IsBusy = false;
 
         await _context.SaveChangesAsync();
@@ -196,7 +218,7 @@ public class AssignmentsController : ControllerBase
     [Authorize(Roles = "Rider")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateStatusRequest req)
     {
-        var assignment = await _context.OrderAssignments.FindAsync(id);
+        var assignment = await _context.OrderAssignments.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Id == id);
         if (assignment == null) return NotFound();
         if (assignment.RiderId != _tenant.RiderId) return Forbid();
 
@@ -213,11 +235,11 @@ public class AssignmentsController : ControllerBase
             assignment.DeliveredAt = DateTime.UtcNow;
 
             // Liberar rider
-            var rider = await _context.Riders.FindAsync(assignment.RiderId);
+            var rider = await _context.Riders.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == assignment.RiderId);
             if (rider != null) rider.IsBusy = false;
 
             // Actualizar request
-            var request = await _context.DeliveryRequests.FindAsync(assignment.RequestId);
+            var request = await _context.DeliveryRequests.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == assignment.RequestId);
             if (request != null)
             {
                 request.Status = DeliveryRequestStatus.Delivered;
@@ -232,18 +254,5 @@ public class AssignmentsController : ControllerBase
 
         await _context.SaveChangesAsync();
         return NoContent();
-    }
-
-    private IQueryable<AssignmentDto> BuildQueryable()
-    {
-        return from a in _context.OrderAssignments
-               join r in _context.Riders on a.RiderId equals r.Id
-               join req in _context.DeliveryRequests on a.RequestId equals req.Id
-               join rest in _context.Restaurants on req.RestaurantId equals rest.Id
-               where _tenant.TenantId == null || a.TenantId == _tenant.TenantId.Value
-               select new AssignmentDto(
-                   a.Id, a.RequestId, a.RiderId, r.FullName, rest.Name,
-                   a.Status.ToString(), a.RejectionReason,
-                   a.CreatedAt, a.AcceptedAt, a.RejectedAt, a.DeliveredAt);
     }
 }

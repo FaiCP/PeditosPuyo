@@ -32,24 +32,24 @@ public class AuthController : ControllerBase
         if (user == null || !await _userManager.CheckPasswordAsync(user, request.Password))
             return Unauthorized(new { isSuccess = false, error = "Invalid credentials" });
 
-        // Buscar perfil adicional según rol
+        // Buscar perfil adicional según rol (ignorar query filters durante login)
         Guid? companyId = null;
         Guid? restaurantId = null;
         Guid? riderId = null;
 
         if (user.Role == "CompanyAdmin")
         {
-            var admin = await _context.CompanyAdmins.FirstOrDefaultAsync(a => a.UserId.ToString() == user.Id);
+            var admin = await _context.CompanyAdmins.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.UserId.ToString() == user.Id);
             companyId = admin?.CompanyId;
         }
         else if (user.Role == "RestaurantAdmin")
         {
-            var admin = await _context.RestaurantAdmins.FirstOrDefaultAsync(a => a.UserId.ToString() == user.Id);
+            var admin = await _context.RestaurantAdmins.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.UserId.ToString() == user.Id);
             restaurantId = admin?.RestaurantId;
         }
         else if (user.Role == "Rider")
         {
-            var rider = await _context.Riders.FirstOrDefaultAsync(r => r.UserId.ToString() == user.Id);
+            var rider = await _context.Riders.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.UserId.ToString() == user.Id);
             riderId = rider?.Id;
         }
 
@@ -138,17 +138,34 @@ public class AuthController : ControllerBase
         }
         else if (request.Role == "Rider")
         {
+            // Buscar o crear una empresa por defecto para riders (ignorar query filters)
+            var company = await _context.DeliveryCompanies.IgnoreQueryFilters().FirstOrDefaultAsync();
+            if (company == null)
+            {
+                company = new DeliveryCompany
+                {
+                    TenantId = Guid.NewGuid(),
+                    Name = "Puyo Delivery",
+                    Slug = "puyo-delivery"
+                };
+                _context.DeliveryCompanies.Add(company);
+                await _context.SaveChangesAsync();
+            }
+
             var rider = new Rider
             {
-                TenantId = user.TenantId ?? Guid.NewGuid(),
-                CompanyId = user.TenantId ?? Guid.NewGuid(),
+                TenantId = company.TenantId,
+                CompanyId = company.Id,
                 UserId = Guid.Parse(user.Id),
                 FullName = request.FullName,
                 Phone = request.Phone,
                 VehiclePlate = ""
             };
             _context.Riders.Add(rider);
+            user.TenantId = company.TenantId;
             riderId = rider.Id;
+
+            await _userManager.UpdateAsync(user);
         }
 
         await _context.SaveChangesAsync();

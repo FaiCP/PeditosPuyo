@@ -26,6 +26,7 @@ public class RiderCleanupService : BackgroundService
                 var cutoffTime = DateTime.UtcNow.AddMinutes(-5);
 
                 var offlineRiders = await context.Riders
+                    .IgnoreQueryFilters()
                     .Where(r => r.IsOnline && r.LastLocationUpdate < cutoffTime)
                     .ToListAsync(stoppingToken);
 

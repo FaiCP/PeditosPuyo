@@ -26,12 +26,8 @@ public class RestaurantsController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<IEnumerable<RestaurantDto>>> GetAll()
     {
-        var query = _context.Restaurants.AsQueryable();
-
-        if (_tenant.TenantId.HasValue)
-            query = query.Where(r => r.TenantId == _tenant.TenantId.Value);
-
-        var restaurants = await query
+        var restaurants = await _context.Restaurants
+            .IgnoreQueryFilters()
             .Where(r => r.IsActive)
             .Select(r => new RestaurantDto(
                 r.Id, r.Name, r.Slug, r.Address, r.Phone,

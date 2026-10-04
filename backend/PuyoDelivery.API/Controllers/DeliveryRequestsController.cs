@@ -35,7 +35,33 @@ public class DeliveryRequestsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<DeliveryRequestDto>>> GetAll()
     {
-        var requests = await BuildQueryable().ToListAsync();
+        var query = _context.DeliveryRequests
+            .IgnoreQueryFilters()
+            .Include(r => r.Restaurant)
+            .AsQueryable();
+
+        // CompanyAdmin ve todas las requests; otros solo las de su tenant
+        if (_tenant.Role != "CompanyAdmin")
+        {
+            query = query.Where(r => _tenant.TenantId == null || r.TenantId == _tenant.TenantId.Value);
+        }
+
+        var requests = await query
+            .Select(r => new DeliveryRequestDto(
+                r.Id,
+                r.RestaurantId,
+                r.Restaurant.Name,
+                r.Status.ToString(),
+                r.DeliveryAddress,
+                r.DeliveryLocation.Y,
+                r.DeliveryLocation.X,
+                r.Notes,
+                r.CreatedAt,
+                r.AssignedAt,
+                r.AcceptedAt,
+                r.DeliveredAt))
+            .ToListAsync();
+
         return Ok(requests);
     }
 
@@ -43,8 +69,23 @@ public class DeliveryRequestsController : ControllerBase
     [Authorize(Roles = "CompanyAdmin")]
     public async Task<ActionResult<IEnumerable<DeliveryRequestDto>>> GetPending()
     {
-        var requests = await BuildQueryable()
-            .Where(r => r.Status == "Pending" || r.Status == "Assigned")
+        var requests = await _context.DeliveryRequests
+            .IgnoreQueryFilters()
+            .Include(r => r.Restaurant)
+            .Where(r => r.Status == DeliveryRequestStatus.Pending || r.Status == DeliveryRequestStatus.Assigned)
+            .Select(r => new DeliveryRequestDto(
+                r.Id,
+                r.RestaurantId,
+                r.Restaurant.Name,
+                r.Status.ToString(),
+                r.DeliveryAddress,
+                r.DeliveryLocation.Y,
+                r.DeliveryLocation.X,
+                r.Notes,
+                r.CreatedAt,
+                r.AssignedAt,
+                r.AcceptedAt,
+                r.DeliveredAt))
             .ToListAsync();
 
         return Ok(requests);
@@ -53,16 +94,32 @@ public class DeliveryRequestsController : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<DeliveryRequestDto>> GetById(Guid id)
     {
-        var request = await BuildQueryable().FirstOrDefaultAsync(r => r.Id == id);
+        var request = await _context.DeliveryRequests
+            .IgnoreQueryFilters()
+            .Include(r => r.Restaurant)
+            .FirstOrDefaultAsync(r => r.Id == id);
         if (request == null) return NotFound();
-        return Ok(request);
+
+        return Ok(new DeliveryRequestDto(
+            request.Id,
+            request.RestaurantId,
+            request.Restaurant.Name,
+            request.Status.ToString(),
+            request.DeliveryAddress,
+            request.DeliveryLocation.Y,
+            request.DeliveryLocation.X,
+            request.Notes,
+            request.CreatedAt,
+            request.AssignedAt,
+            request.AcceptedAt,
+            request.DeliveredAt));
     }
 
     [HttpPost]
     [Authorize(Roles = "RestaurantAdmin")]
     public async Task<ActionResult<DeliveryRequestDto>> Create([FromBody] CreateDeliveryRequestRequest req)
     {
-        var restaurant = await _context.Restaurants.FindAsync(req.RestaurantId);
+        var restaurant = await _context.Restaurants.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == req.RestaurantId);
         if (restaurant == null) return BadRequest(new { isSuccess = false, error = "Restaurant not found" });
 
         var deliveryRequest = new DeliveryRequest
@@ -133,27 +190,5 @@ public class DeliveryRequestsController : ControllerBase
         });
 
         return NoContent();
-    }
-
-    private IQueryable<DeliveryRequestDto> BuildQueryable()
-    {
-        var query = from r in _context.DeliveryRequests
-                    join rest in _context.Restaurants on r.RestaurantId equals rest.Id
-                    where _tenant.TenantId == null || r.TenantId == _tenant.TenantId.Value
-                    select new DeliveryRequestDto(
-                        r.Id,
-                        r.RestaurantId,
-                        rest.Name,
-                        r.Status.ToString(),
-                        r.DeliveryAddress,
-                        r.DeliveryLocation.Y,
-                        r.DeliveryLocation.X,
-                        r.Notes,
-                        r.CreatedAt,
-                        r.AssignedAt,
-                        r.AcceptedAt,
-                        r.DeliveredAt);
-
-        return query;
     }
 }

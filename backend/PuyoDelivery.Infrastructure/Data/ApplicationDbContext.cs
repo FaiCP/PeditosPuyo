@@ -67,7 +67,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Rider>(e =>
         {
             e.HasOne(x => x.Company).WithMany(x => x.Riders).HasForeignKey(x => x.CompanyId);
-            e.Property(x => x.CurrentLocation).HasColumnType("geography(point, 4326)");
+            e.Property(x => x.CurrentLocation).HasColumnType("geometry(point, 4326)");
             e.HasIndex(x => x.CurrentLocation).HasMethod("GIST");
             e.HasIndex(x => new { x.TenantId, x.IsOnline, x.IsBusy });
         });
@@ -82,7 +82,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             e.HasIndex(x => x.Slug).IsUnique();
             e.Property(x => x.Name).HasMaxLength(100);
             e.Property(x => x.Slug).HasMaxLength(100);
-            e.Property(x => x.Location).HasColumnType("geography(point, 4326)");
+            e.Property(x => x.Location).HasColumnType("geometry(point, 4326)");
             e.HasIndex(x => x.Location).HasMethod("GIST");
         });
 
@@ -94,7 +94,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<DeliveryRequest>(e =>
         {
             e.HasOne(x => x.Restaurant).WithMany(x => x.DeliveryRequests).HasForeignKey(x => x.RestaurantId);
-            e.Property(x => x.DeliveryLocation).HasColumnType("geography(point, 4326)");
+            e.Property(x => x.DeliveryLocation).HasColumnType("geometry(point, 4326)");
             e.HasIndex(x => x.DeliveryLocation).HasMethod("GIST");
         });
 
@@ -104,15 +104,15 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             e.HasOne(x => x.Rider).WithMany(x => x.Assignments).HasForeignKey(x => x.RiderId);
         });
 
-        // Global Query Filter para multi-tenancy
-        builder.Entity<DeliveryCompany>().HasQueryFilter(x => x.TenantId == _tenantAccessor.TenantId!.Value);
-        builder.Entity<Subscription>().HasQueryFilter(x => x.TenantId == _tenantAccessor.TenantId!.Value);
-        builder.Entity<CompanyAdmin>().HasQueryFilter(x => x.TenantId == _tenantAccessor.TenantId!.Value);
-        builder.Entity<Rider>().HasQueryFilter(x => x.TenantId == _tenantAccessor.TenantId!.Value);
-        builder.Entity<Restaurant>().HasQueryFilter(x => x.TenantId == _tenantAccessor.TenantId!.Value);
-        builder.Entity<MenuItem>().HasQueryFilter(x => x.TenantId == _tenantAccessor.TenantId!.Value);
-        builder.Entity<DeliveryRequest>().HasQueryFilter(x => x.TenantId == _tenantAccessor.TenantId!.Value);
-        builder.Entity<OrderAssignment>().HasQueryFilter(x => x.TenantId == _tenantAccessor.TenantId!.Value);
+        // Global Query Filter para multi-tenancy (null = mostrar todos, para endpoints públicos)
+        builder.Entity<DeliveryCompany>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId.Value);
+        builder.Entity<Subscription>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId.Value);
+        builder.Entity<CompanyAdmin>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId.Value);
+        builder.Entity<Rider>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId.Value);
+        builder.Entity<Restaurant>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId.Value);
+        builder.Entity<MenuItem>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId.Value);
+        builder.Entity<DeliveryRequest>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId.Value);
+        builder.Entity<OrderAssignment>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId.Value);
     }
 }
 
