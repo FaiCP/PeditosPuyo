@@ -34,12 +34,40 @@ export interface DeliveryRequest {
   deliveredAt?: string;
 }
 
+export interface Rider {
+  id: string;
+  fullName: string;
+  phone: string;
+  vehiclePlate: string;
+  isOnline: boolean;
+  isBusy: boolean;
+  lat?: number;
+  lng?: number;
+  distanceKm?: number;
+}
+
+export interface Assignment {
+  id: string;
+  requestId: string;
+  riderId: string;
+  riderName: string;
+  restaurantName: string;
+  status: string;
+  rejectionReason?: string;
+  createdAt: string;
+  acceptedAt?: string;
+  rejectedAt?: string;
+  deliveredAt?: string;
+}
+
 export interface User {
   id: string;
   email: string;
   fullName: string;
   role: string;
   tenantId?: string;
+  restaurantId?: string;
+  companyId?: string;
 }
 
 export interface LoginResponse {
@@ -49,4 +77,9 @@ export interface LoginResponse {
   tenantId?: string;
   fullName: string;
   email: string;
+}
+
+export interface ImportResult {
+  imported: number;
+  errors: string[];
 }
