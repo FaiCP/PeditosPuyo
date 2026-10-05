@@ -144,11 +144,12 @@ static string NormalizeConnectionString(string cs)
 
     var uri = new Uri(cs);
     var database = uri.AbsolutePath.Trim('/');
+    var port = uri.Port > 0 ? uri.Port : 5432; // URLs internas de Render no traen puerto
     var userInfo = uri.UserInfo.Split(':', 2);
     var username = Uri.UnescapeDataString(userInfo[0]);
     var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
 
-    var result = $"Host={uri.Host};Port={uri.Port};Database={database};Username={username};Password={password}";
+    var result = $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password}";
 
     // SSL obligatorio en remoto (Render); local no lo usa
     if (!uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) &&
