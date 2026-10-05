@@ -93,7 +93,7 @@ public class RestaurantsController : ControllerBase
     [Authorize(Roles = "SuperAdmin,CompanyAdmin")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateRestaurantRequest request)
     {
-        var restaurant = await _context.Restaurants.FindAsync(id);
+        var restaurant = await _context.Restaurants.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == id);
         if (restaurant == null) return NotFound();
 
         restaurant.Name = request.Name;
@@ -200,7 +200,7 @@ public class RestaurantsController : ControllerBase
     [Authorize(Roles = "SuperAdmin,CompanyAdmin,RestaurantAdmin")]
     public async Task<ActionResult<MenuItemDto>> AddMenuItem(Guid id, [FromBody] CreateMenuItemRequest request)
     {
-        var restaurant = await _context.Restaurants.FindAsync(id);
+        var restaurant = await _context.Restaurants.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == id);
         if (restaurant == null) return NotFound();
 
         var menuItem = new MenuItem
