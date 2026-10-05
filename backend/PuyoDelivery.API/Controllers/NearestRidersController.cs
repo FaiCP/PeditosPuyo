@@ -31,26 +31,22 @@ public class NearestRidersController : ControllerBase
         if (!_tenant.TenantId.HasValue)
             return Unauthorized();
 
-        var location = new Point(lng, lat) { SRID = 4326 };
-
-        var riders = await _context.Riders
+var riders = await _context.Riders
             .FromSqlRaw(@"
-                SELECT id, tenant_id, company_id, user_id, full_name, phone, vehicle_plate,
-                       is_online, is_busy, fcm_token,
-                       current_location, last_location_update,
-                       ST_Y(current_location::geometry) as lat,
-                       ST_X(current_location::geometry) as lng
-                FROM riders
-                WHERE tenant_id = {0}
-                  AND is_online = true
-                  AND is_busy = false
-                  AND current_location IS NOT NULL
+                SELECT ""Id"", ""TenantId"", ""CompanyId"", ""UserId"", ""FullName"", ""Phone"", ""VehiclePlate"",
+                       ""IsOnline"", ""IsBusy"", ""FcmToken"",
+                       ""CurrentLocation"", ""LastLocationUpdate"", ""IsActive"", ""CreatedAt"", ""UpdatedAt""
+                FROM ""Riders""
+                WHERE ""TenantId"" = {0}
+                  AND ""IsOnline"" = true
+                  AND ""IsBusy"" = false
+                  AND ""CurrentLocation"" IS NOT NULL
                   AND ST_DWithin(
-                    current_location::geography,
+                    ""CurrentLocation""::geography,
                     ST_SetSRID(ST_MakePoint({1}, {2}), 4326)::geography,
                     {3} * 1000
                   )
-                ORDER BY current_location <-> ST_SetSRID(ST_MakePoint({1}, {2}), 4326)::geography
+                ORDER BY ""CurrentLocation"" <-> ST_SetSRID(ST_MakePoint({1}, {2}), 4326)::geography
                 LIMIT 3",
                 _tenant.TenantId.Value, lng, lat, radiusKm)
             .ToListAsync();
@@ -59,11 +55,22 @@ public class NearestRidersController : ControllerBase
             r.Id,
             r.FullName,
             r.VehiclePlate,
-            r.CurrentLocation != null ? r.CurrentLocation.Distance(location) / 1000.0 : 0,
+            r.CurrentLocation != null ? HaversineKm(r.CurrentLocation.Y, r.CurrentLocation.X, lat, lng) : 0,
             r.CurrentLocation?.Y ?? 0,
             r.CurrentLocation?.X ?? 0
         )).ToList();
 
         return Ok(result);
+    }
+
+    private static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double R = 6371.0;
+        var dLat = (lat2 - lat1) * Math.PI / 180.0;
+        var dLon = (lon2 - lon1) * Math.PI / 180.0;
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(lat1 * Math.PI / 180.0) * Math.Cos(lat2 * Math.PI / 180.0) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
     }
 }
