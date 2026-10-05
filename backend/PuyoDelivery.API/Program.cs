@@ -30,8 +30,10 @@ var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "PuyoDeliveryApp";
 builder.Services.AddAuthorization();
 
 // EF Core + PostgreSQL
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? Environment.GetEnvironmentVariable("DATABASE_URL")
     ?? "Host=localhost;Port=5433;Database=puyodelivery;Username=postgres;Password=postgres";
+var connectionString = NormalizeConnectionString(rawConnectionString);
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString, npgsql =>
@@ -132,3 +134,29 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+// Convierte URLs postgres:// / postgresql:// (formato Render/Heroku) a connection string Npgsql
+static string NormalizeConnectionString(string cs)
+{
+    if (!cs.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) &&
+        !cs.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+        return cs;
+
+    var uri = new Uri(cs);
+    var database = uri.AbsolutePath.Trim('/');
+    var userInfo = uri.UserInfo.Split(':', 2);
+    var username = Uri.UnescapeDataString(userInfo[0]);
+    var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
+
+    var result = $"Host={uri.Host};Port={uri.Port};Database={database};Username={username};Password={password}";
+
+    // SSL obligatorio en remoto (Render); local no lo usa
+    if (!uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) &&
+        !uri.Host.Equals("127.0.0.1") &&
+        !uri.Host.Equals("host.docker.internal", StringComparison.OrdinalIgnoreCase))
+    {
+        result += ";SSL Mode=Require;Trust Server Certificate=true";
+    }
+
+    return result;
+}
