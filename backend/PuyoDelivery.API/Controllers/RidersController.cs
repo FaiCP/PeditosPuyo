@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PuyoDelivery.Core.Dtos;
@@ -14,11 +15,13 @@ public class RidersController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ICurrentTenantService _tenant;
+    private readonly UserManager<ApplicationUser> _userManager;
 
-    public RidersController(ApplicationDbContext context, ICurrentTenantService tenant)
+    public RidersController(ApplicationDbContext context, ICurrentTenantService tenant, UserManager<ApplicationUser> userManager)
     {
         _context = context;
         _tenant = tenant;
+        _userManager = userManager;
     }
 
     [HttpGet]
@@ -52,12 +55,35 @@ public class RidersController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "CompanyAdmin")]
     public async Task<ActionResult<RiderDto>> Create([FromBody] CreateRiderRequest request)
     {
+        if (!_tenant.TenantId.HasValue || !_tenant.CompanyId.HasValue)
+            return BadRequest(new { isSuccess = false, error = "No company tenant" });
+
+        var existingUser = await _userManager.FindByEmailAsync(request.Email);
+        if (existingUser != null)
+            return BadRequest(new { isSuccess = false, error = "Email already registered" });
+
+        var user = new ApplicationUser
+        {
+            UserName = request.Email,
+            Email = request.Email,
+            FullName = request.FullName,
+            Phone = request.Phone,
+            Role = "Rider",
+            TenantId = _tenant.TenantId
+        };
+
+        var result = await _userManager.CreateAsync(user, request.Password);
+        if (!result.Succeeded)
+            return BadRequest(new { isSuccess = false, error = string.Join(", ", result.Errors.Select(e => e.Description)) });
+
         var rider = new Core.Entities.Rider
         {
             TenantId = _tenant.TenantId!.Value,
             CompanyId = _tenant.CompanyId!.Value,
+            UserId = Guid.Parse(user.Id),
             FullName = request.FullName,
             Phone = request.Phone,
             VehiclePlate = request.VehiclePlate
@@ -67,6 +93,44 @@ public class RidersController : ControllerBase
         await _context.SaveChangesAsync();
 
         return Ok(new RiderDto(rider.Id, rider.FullName, rider.Phone, rider.VehiclePlate, rider.IsOnline, rider.IsBusy, rider.IsActive, null, null, null));
+    }
+
+    [HttpPut("{id:guid}/status")]
+    public async Task<IActionResult> SetStatus(Guid id, [FromBody] RiderStatusRequest request)
+    {
+        var rider = await _context.Riders.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == id);
+        if (rider == null) return NotFound();
+
+        if (_tenant.Role == "Rider" && _tenant.RiderId != id) return Forbid();
+        if (_tenant.Role == "CompanyAdmin" && rider.TenantId != _tenant.TenantId) return Forbid();
+
+        rider.IsOnline = request.IsOnline;
+        if (request.IsOnline)
+            rider.LastLocationUpdate = DateTime.UtcNow;
+        else
+            rider.CurrentLocation = null;
+
+        await _context.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    [HttpPut("{id:guid}/location")]
+    public async Task<IActionResult> UpdateLocation(Guid id, [FromBody] UpdateLocationRequest request)
+    {
+        var rider = await _context.Riders.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == id);
+        if (rider == null) return NotFound();
+
+        if (_tenant.Role == "Rider" && _tenant.RiderId != id) return Forbid();
+        if (_tenant.Role == "CompanyAdmin" && rider.TenantId != _tenant.TenantId) return Forbid();
+
+        rider.CurrentLocation = new NetTopologySuite.Geometries.Point(request.Lng, request.Lat) { SRID = 4326 };
+        rider.LastLocationUpdate = DateTime.UtcNow;
+        rider.IsOnline = true;
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new { success = true });
     }
 
     [HttpPut("{id:guid}")]

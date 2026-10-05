@@ -48,7 +48,7 @@ public class TenantIsolationTests : IDisposable
             TestData.CreateDeliveryRequest(_restaurantB));
         _context.SaveChanges();
 
-        _riders = new RidersController(_context, _tenantMock.Object);
+        _riders = new RidersController(_context, _tenantMock.Object, TestDb.CreateUserManager(_context));
         _deliveryRequests = new DeliveryRequestsController(
             _context,
             _tenantMock.Object,

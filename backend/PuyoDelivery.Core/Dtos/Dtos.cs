@@ -17,6 +17,7 @@ public record PaymentDto(Guid Id, decimal Amount, string Method, string Referenc
 public record RiderDto(Guid Id, string FullName, string Phone, string VehiclePlate, bool IsOnline, bool IsBusy, bool IsActive, double? Lat, double? Lng, DateTime? LastLocationUpdate);
 public record CreateRiderRequest(string FullName, string Phone, string VehiclePlate, string Email, string Password);
 public record UpdateRiderRequest(string FullName, string Phone, string VehiclePlate, bool IsActive);
+public record RiderStatusRequest(bool IsOnline);
 public record UpdateLocationRequest(double Lat, double Lng);
 public record RiderNearbyDto(Guid Id, string FullName, string VehiclePlate, double DistanceKm, double Lat, double Lng);
 

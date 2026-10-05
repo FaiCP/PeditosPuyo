@@ -39,7 +39,7 @@ public class RidersControllerTests : IDisposable
         _context.Riders.AddRange(_riderA, _riderB);
         _context.SaveChanges();
 
-        _ridersController = new RidersController(_context, _tenantMock.Object);
+        _ridersController = new RidersController(_context, _tenantMock.Object, TestDb.CreateUserManager(_context));
         _driverController = new DriverController(_context, _tenantMock.Object);
     }
 
@@ -191,5 +191,103 @@ public class RidersControllerTests : IDisposable
         var result = await _driverController.UpdateLocation(new UpdateLocationRequest(-1.05, -78.47));
 
         result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Fact]
+    public async Task SetStatus_CompanyActivatesRider_SetsOnline()
+    {
+        SetCompanyTenant(TestData.TenantA, _companyA.Id);
+        _riderA.IsOnline = false;
+        _context.SaveChanges();
+
+        var result = await _ridersController.SetStatus(_riderA.Id, new RiderStatusRequest(true));
+
+        result.Should().BeOfType<NoContentResult>();
+        var saved = _context.Riders.IgnoreQueryFilters().Single(r => r.Id == _riderA.Id);
+        saved.IsOnline.Should().BeTrue();
+        saved.LastLocationUpdate.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task SetStatus_Deactivate_ClearsLocation()
+    {
+        SetCompanyTenant(TestData.TenantA, _companyA.Id);
+
+        var result = await _ridersController.SetStatus(_riderA.Id, new RiderStatusRequest(false));
+
+        result.Should().BeOfType<NoContentResult>();
+        var saved = _context.Riders.IgnoreQueryFilters().Single(r => r.Id == _riderA.Id);
+        saved.IsOnline.Should().BeFalse();
+        saved.CurrentLocation.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SetStatus_WrongTenant_Returns403()
+    {
+        SetCompanyTenant(TestData.TenantB, _companyB.Id);
+
+        var result = await _ridersController.SetStatus(_riderA.Id, new RiderStatusRequest(true));
+
+        result.Should().BeOfType<ForbidResult>();
+    }
+
+    [Fact]
+    public async Task SetStatus_RiderSelfOtherId_Returns403()
+    {
+        _tenantMock.SetupGet(t => t.Role).Returns("Rider");
+        _tenantMock.SetupGet(t => t.RiderId).Returns(Guid.NewGuid());
+
+        var result = await _ridersController.SetStatus(_riderA.Id, new RiderStatusRequest(true));
+
+        result.Should().BeOfType<ForbidResult>();
+    }
+
+    [Fact]
+    public async Task PutLocation_SelfUpdates_AndGoesOnline()
+    {
+        _tenantMock.SetupGet(t => t.Role).Returns("Rider");
+        _tenantMock.SetupGet(t => t.RiderId).Returns(_riderA.Id);
+        _riderA.IsOnline = false;
+        _context.SaveChanges();
+
+        var result = await _ridersController.UpdateLocation(_riderA.Id, new UpdateLocationRequest(-1.0470, -78.4690));
+
+        result.Should().BeOfType<OkObjectResult>();
+        var saved = _context.Riders.IgnoreQueryFilters().Single(r => r.Id == _riderA.Id);
+        saved.IsOnline.Should().BeTrue();
+        saved.CurrentLocation!.X.Should().Be(-78.4690);
+        saved.CurrentLocation.Y.Should().Be(-1.0470);
+    }
+
+    [Fact]
+    public async Task Create_AlsoCreatesLoginUser()
+    {
+        SetCompanyTenant(TestData.TenantA, _companyA.Id);
+        var request = new CreateRiderRequest("Rider Con Login", "0995550000", "PBA-7777", "riderlogin@test.com", "Test123!");
+
+        var result = await _ridersController.Create(request);
+
+        var ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var dto = ok.Value.Should().BeOfType<RiderDto>().Subject;
+
+        var saved = _context.Riders.IgnoreQueryFilters().Single(r => r.Id == dto.Id);
+        saved.UserId.Should().NotBe(Guid.Empty);
+
+        var user = await TestDb.CreateUserManager(_context).FindByEmailAsync("riderlogin@test.com");
+        user.Should().NotBeNull();
+        user!.Role.Should().Be("Rider");
+        user.TenantId.Should().Be(TestData.TenantA);
+    }
+
+    [Fact]
+    public async Task Create_DuplicateEmail_Fails400()
+    {
+        SetCompanyTenant(TestData.TenantA, _companyA.Id);
+        await _ridersController.Create(new CreateRiderRequest("R1", "099", "P-1", "dup@test.com", "Test123!"));
+
+        var result = await _ridersController.Create(new CreateRiderRequest("R2", "099", "P-2", "dup@test.com", "Test123!"));
+
+        var bad = result.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        bad.Value.Should().NotBeNull();
     }
 }

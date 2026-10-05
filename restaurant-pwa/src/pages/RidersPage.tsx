@@ -7,6 +7,10 @@ export default function RidersPage() {
   const { user } = useAuth();
   const [riders, setRiders] = useState<Rider[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ fullName: '', phone: '', vehiclePlate: '', email: '', password: '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetchRiders();
@@ -20,6 +24,22 @@ export default function RidersPage() {
       console.error('Error fetching riders:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createRider = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setError('');
+    try {
+      await api.post('/riders', form);
+      setShowForm(false);
+      setForm({ fullName: '', phone: '', vehiclePlate: '', email: '', password: '' });
+      fetchRiders();
+    } catch (err: any) {
+      setError(err.response?.data?.error ?? 'Error al crear el rider');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -39,13 +59,87 @@ export default function RidersPage() {
           <h1 className="text-2xl font-bold text-gray-900">Gestión de Riders</h1>
           <p className="text-gray-600">Riders de {user?.fullName}</p>
         </div>
-        <button
-          onClick={fetchRiders}
-          className="bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300 font-medium text-sm"
-        >
-          ↻ Actualizar
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowForm(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium text-sm"
+          >
+            + Nuevo rider
+          </button>
+          <button
+            onClick={fetchRiders}
+            className="bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300 font-medium text-sm"
+          >
+            ↻ Actualizar
+          </button>
+        </div>
       </header>
+
+      {showForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowForm(false)}>
+          <form
+            onSubmit={createRider}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md space-y-4"
+          >
+            <h2 className="text-lg font-bold text-gray-900">Nuevo rider</h2>
+            {error && <p className="text-red-600 text-sm bg-red-50 rounded-lg p-2">{error}</p>}
+            <input
+              required
+              placeholder="Nombre completo"
+              value={form.fullName}
+              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            />
+            <input
+              required
+              type="email"
+              placeholder="Email (login del rider)"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            />
+            <input
+              required
+              placeholder="Teléfono"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            />
+            <input
+              placeholder="Placa del vehículo"
+              value={form.vehiclePlate}
+              onChange={(e) => setForm({ ...form, vehiclePlate: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            />
+            <input
+              required
+              type="password"
+              minLength={6}
+              placeholder="Contraseña (mín. 6, con dígito)"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            />
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 font-medium text-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium text-sm disabled:opacity-50"
+              >
+                {saving ? 'Creando...' : 'Crear rider'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {loading ? (
         <div className="text-center py-12">
@@ -54,7 +148,7 @@ export default function RidersPage() {
       ) : riders.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
           <p className="text-gray-500 text-lg">No hay riders registrados.</p>
-          <p className="text-gray-400 text-sm mt-2">Los riders se registran desde la app móvil.</p>
+          <p className="text-gray-400 text-sm mt-2">Usa "+ Nuevo rider" para crear uno con su cuenta de login.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
