@@ -122,6 +122,8 @@ app.MapHub<CompanyHub>("/hubs/company");
 app.MapHub<RiderHub>("/hubs/rider");
 app.MapHub<RestaurantHub>("/hubs/restaurant");
 
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+
 // Auto-migrate en desarrollo
 using (var scope = app.Services.CreateScope())
 {
