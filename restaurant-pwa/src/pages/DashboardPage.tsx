@@ -4,7 +4,7 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useSignalR } from '../hooks/useSignalR';
 import { useSoundAlert } from '../hooks/useSoundAlert';
-import type { DeliveryRequest } from '../types';
+import type { DeliveryRequest, Rider } from '../types';
 
 const STATUS_LABELS: Record<string, string> = {
   Pending: 'Pendiente',
@@ -29,7 +29,12 @@ export default function DashboardPage() {
   const [requests, setRequests] = useState<DeliveryRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'active' | 'delivered'>('active');
+  const [assignFor, setAssignFor] = useState<DeliveryRequest | null>(null);
+  const [riders, setRiders] = useState<Rider[]>([]);
+  const [assigning, setAssigning] = useState(false);
+  const [assignError, setAssignError] = useState('');
   const { playAlert } = useSoundAlert();
+  const isCompany = user?.role === 'CompanyAdmin';
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
   const HUB_URL = API_URL.replace('/api', '');
@@ -88,6 +93,32 @@ export default function DashboardPage() {
     return true;
   });
 
+  const openAssign = async (request: DeliveryRequest) => {
+    setAssignFor(request);
+    setAssignError('');
+    try {
+      const { data } = await api.get<Rider[]>('/riders');
+      setRiders(data);
+    } catch {
+      setRiders([]);
+    }
+  };
+
+  const doAssign = async (rider: Rider) => {
+    if (!assignFor) return;
+    setAssigning(true);
+    setAssignError('');
+    try {
+      await api.post('/assignments', { requestId: assignFor.id, riderId: rider.id });
+      setAssignFor(null);
+      fetchRequests();
+    } catch (err: any) {
+      setAssignError(err.response?.data?.error ?? 'Error al asignar');
+    } finally {
+      setAssigning(false);
+    }
+  };
+
   const stats = {
     total: requests.length,
     pending: requests.filter((r) => r.status === 'Pending').length,
@@ -145,8 +176,71 @@ export default function DashboardPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((r) => (
-            <DeliveryCard key={r.id} request={r} />
+            <DeliveryCard
+              key={r.id}
+              request={r}
+              canAssign={isCompany && r.status === 'Pending'}
+              onAssign={() => openAssign(r)}
+            />
           ))}
+        </div>
+      )}
+
+      {assignFor && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setAssignFor(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Asignar rider</h2>
+            <p className="text-sm text-gray-500 mb-4">{assignFor.deliveryAddress}</p>
+            {assignError && (
+              <p className="text-red-600 text-sm bg-red-50 rounded-lg p-2 mb-3">{assignError}</p>
+            )}
+            {riders.length === 0 ? (
+              <p className="text-gray-500 text-sm py-6 text-center">
+                No hay riders. Crea uno en la pestaña Riders.
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {riders.map((rider) => (
+                  <button
+                    key={rider.id}
+                    disabled={!rider.isOnline || rider.isBusy || assigning}
+                    onClick={() => doAssign(rider)}
+                    className="w-full flex justify-between items-center border border-gray-200 rounded-lg px-4 py-3 text-left hover:bg-blue-50 disabled:opacity-40 disabled:hover:bg-white"
+                  >
+                    <span>
+                      <span className="font-medium text-gray-900">{rider.fullName}</span>
+                      <span className="text-xs text-gray-500 block">
+                        {rider.vehiclePlate || 'Sin placa'} · {rider.phone}
+                      </span>
+                    </span>
+                    <span
+                      className={`text-xs px-2 py-1 rounded-full ${
+                        rider.isBusy
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : rider.isOnline
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      {rider.isBusy ? 'Ocupado' : rider.isOnline ? 'Disponible' : 'Offline'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => setAssignFor(null)}
+              className="w-full mt-4 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 font-medium text-sm"
+            >
+              Cancelar
+            </button>
+          </div>
         </div>
       )}
 
@@ -192,7 +286,15 @@ function FilterButton({
   );
 }
 
-function DeliveryCard({ request }: { request: DeliveryRequest }) {
+function DeliveryCard({
+  request,
+  canAssign = false,
+  onAssign,
+}: {
+  request: DeliveryRequest;
+  canAssign?: boolean;
+  onAssign?: () => void;
+}) {
   const timeAgo = (date: string) => {
     const diff = Date.now() - new Date(date).getTime();
     const mins = Math.floor(diff / 60000);
@@ -236,6 +338,15 @@ function DeliveryCard({ request }: { request: DeliveryRequest }) {
           </span>
         )}
       </div>
+
+      {canAssign && (
+        <button
+          onClick={onAssign}
+          className="mt-3 w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium text-sm"
+        >
+          Asignar rider
+        </button>
+      )}
     </div>
   );
 }

@@ -11,7 +11,7 @@ using PuyoDelivery.Infrastructure.Data;
 namespace PuyoDelivery.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/delivery-requests")]
 [Authorize]
 public class DeliveryRequestsController : ControllerBase
 {
