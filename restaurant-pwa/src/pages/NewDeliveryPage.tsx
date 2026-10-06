@@ -64,8 +64,22 @@ export default function NewDeliveryPage() {
       .catch(() => setError('No se pudieron cargar los restaurantes.'));
   }, []);
 
-  const applyLink = () => {
-    const coords = parseCoords(mapLink);
+  const applyLink = async () => {
+    let target = mapLink;
+    const isShort = /^https?:\/\/(maps\.app\.goo\.gl|goo\.gl|g\.co)\//i.test(mapLink);
+
+    if (isShort) {
+      setLinkMsg('⏳ Abriendo el link corto de Google Maps...');
+      try {
+        const { data } = await api.get<{ finalUrl: string }>('/resolve-link', { params: { url: mapLink } });
+        target = data.finalUrl;
+      } catch {
+        setLinkMsg('⚠️ No pude abrir el link corto. Abre el link en el navegador y pega la URL larga, o las coordenadas.');
+        return;
+      }
+    }
+
+    const coords = parseCoords(target);
     if (!coords) {
       setLinkMsg('⚠️ No encontré coordenadas en ese link. Pega el link completo de "Compartir → Copiar link" de Google Maps, o escribe "lat, lng".');
       return;
