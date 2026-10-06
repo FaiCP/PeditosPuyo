@@ -31,6 +31,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       fullName: data.fullName,
       role: data.role,
       tenantId: data.tenantId,
+      restaurantId: data.restaurantId,
+      companyId: data.companyId,
     };
     localStorage.setItem('user', JSON.stringify(userData));
     setToken(data.token);

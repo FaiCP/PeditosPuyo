@@ -77,6 +77,9 @@ export interface LoginResponse {
   tenantId?: string;
   fullName: string;
   email: string;
+  companyId?: string;
+  restaurantId?: string;
+  riderId?: string;
 }
 
 export interface ImportResult {

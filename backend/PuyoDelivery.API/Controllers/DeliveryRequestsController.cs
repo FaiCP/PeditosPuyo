@@ -116,7 +116,7 @@ public class DeliveryRequestsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "RestaurantAdmin")]
+    [Authorize(Roles = "RestaurantAdmin,CompanyAdmin")]
     public async Task<ActionResult<DeliveryRequestDto>> Create([FromBody] CreateDeliveryRequestRequest req)
     {
         var restaurant = await _context.Restaurants.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == req.RestaurantId);
