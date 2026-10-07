@@ -19,52 +19,6 @@ public class EntityTests
     }
 
     [Fact]
-    public void DeliveryRequest_DefaultStatusIsPending()
-    {
-        var restaurant = TestData.CreateRestaurant();
-        var request = TestData.CreateDeliveryRequest(restaurant);
-
-        request.Status.Should().Be(DeliveryRequestStatus.Pending);
-        request.AssignedAt.Should().BeNull();
-        request.AcceptedAt.Should().BeNull();
-        request.DeliveredAt.Should().BeNull();
-        request.DeliveryLocation.Should().NotBeNull();
-        request.DeliveryLocation.SRID.Should().Be(4326);
-    }
-
-    [Fact]
-    public void DeliveryRequest_LocationStoresLatLngCorrectly()
-    {
-        var restaurant = TestData.CreateRestaurant();
-        var request = new DeliveryRequest
-        {
-            TenantId = restaurant.TenantId,
-            RestaurantId = restaurant.Id,
-            RequestedBy = Guid.NewGuid(),
-            DeliveryAddress = "Test",
-            DeliveryLocation = new Point(-78.4684, -1.0465) { SRID = 4326 }
-        };
-
-        request.DeliveryLocation.X.Should().Be(-78.4684);
-        request.DeliveryLocation.Y.Should().Be(-1.0465);
-    }
-
-    [Fact]
-    public void OrderAssignment_DefaultStatusIsPending()
-    {
-        var restaurant = TestData.CreateRestaurant();
-        var company = TestData.CreateCompany();
-        var rider = TestData.CreateRider(company);
-        var request = TestData.CreateDeliveryRequest(restaurant);
-        var assignment = TestData.CreateAssignment(request, rider, Guid.NewGuid());
-
-        assignment.Status.Should().Be(AssignmentStatus.Pending);
-        assignment.AcceptedAt.Should().BeNull();
-        assignment.RejectedAt.Should().BeNull();
-        assignment.DeliveredAt.Should().BeNull();
-    }
-
-    [Fact]
     public void Rider_Defaults()
     {
         var company = TestData.CreateCompany();
@@ -122,16 +76,9 @@ public class EntityTests
     }
 
     [Fact]
-    public void DeliveryRequestStatus_EnumValues()
+    public void OrderStatus_EnumValues()
     {
-        new[] { "Pending", "Assigned", "Accepted", "InTransit", "Delivered", "Cancelled" }
-            .Should().BeEquivalentTo(Enum.GetNames<DeliveryRequestStatus>());
-    }
-
-    [Fact]
-    public void AssignmentStatus_EnumValues()
-    {
-        new[] { "Pending", "Accepted", "Rejected", "InTransit", "Delivered" }
-            .Should().BeEquivalentTo(Enum.GetNames<AssignmentStatus>());
+        new[] { "Draft", "WaitingRider", "RiderAccepted", "ReadyForPickup", "PickedUp", "InTransit", "Delivered", "OnHold", "Cancelled" }
+            .Should().BeEquivalentTo(Enum.GetNames<OrderStatus>());
     }
 }

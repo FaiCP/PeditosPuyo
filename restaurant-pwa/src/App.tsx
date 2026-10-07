@@ -1,12 +1,14 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Layout from './components/Layout';
-import PublicCatalogPage from './pages/PublicCatalogPage';
-import RestaurantDetailPage from './pages/RestaurantDetailPage';
 import LoginPage from './pages/LoginPage';
-import DashboardPage from './pages/DashboardPage';
-import NewDeliveryPage from './pages/NewDeliveryPage';
 import RidersPage from './pages/RidersPage';
+import CustomerLayout from './pages/customer/CustomerLayout';
+import CustomerCatalogPage from './pages/customer/CustomerCatalogPage';
+import CustomerMenuPage from './pages/customer/CustomerMenuPage';
+import CustomerNewOrderPage from './pages/customer/CustomerNewOrderPage';
+import CustomerOrderPage from './pages/customer/CustomerOrderPage';
+import CustomerOrdersPage from './pages/customer/CustomerOrdersPage';
 
 function App() {
   return (
@@ -14,42 +16,20 @@ function App() {
       <Router>
         <Routes>
           <Route
-            path="/"
-            element={
-              <Layout showNav={false}>
-                <PublicCatalogPage />
-              </Layout>
-            }
-          />
-          <Route
-            path="/restaurant/:id"
-            element={
-              <Layout showNav={false}>
-                <RestaurantDetailPage />
-              </Layout>
-            }
-          />
+            path="/p/:token"
+            element={<CustomerLayout />}
+          >
+            <Route index element={<CustomerCatalogPage />} />
+            <Route path="r/:restaurantId" element={<CustomerMenuPage />} />
+            <Route path="nuevo" element={<CustomerNewOrderPage />} />
+            <Route path="mis-pedidos" element={<CustomerOrdersPage />} />
+            <Route path="order/:orderId" element={<CustomerOrderPage />} />
+          </Route>
           <Route
             path="/login"
             element={
               <Layout showNav={false}>
                 <LoginPage />
-              </Layout>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <Layout>
-                <DashboardPage />
-              </Layout>
-            }
-          />
-          <Route
-            path="/new-delivery"
-            element={
-              <Layout>
-                <NewDeliveryPage />
               </Layout>
             }
           />
@@ -60,6 +40,10 @@ function App() {
                 <RidersPage />
               </Layout>
             }
+          />
+          <Route
+            path="/"
+            element={<Navigate to="/login" replace />}
           />
         </Routes>
       </Router>

@@ -200,6 +200,24 @@ public class RestaurantsControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task ImportJson_WithoutCoords_UsesPuyoCenterAndCleansSeoName()
+    {
+        var json = """[{"id":42,"name":"LA HACIENDA RESTAURANTE - Restaurantes, Parrilladas en Puyo","address":"Via Puyo-Shell KM, Puyo","phone":"099 981 0999"}]""";
+        var file = CreateFormFile(json, "application/json", "restaurantes_puyo.json");
+
+        var result = await _controller.Import(file);
+
+        var ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        ok.Value.Should().BeOfType<ImportResult>().Subject.Imported.Should().Be(1);
+
+        var saved = _context.Restaurants.IgnoreQueryFilters().Single(r => r.ExternalId == "42");
+        saved.Name.Should().Be("LA HACIENDA RESTAURANTE");
+        saved.Location.Y.Should().Be(RestaurantsController.DefaultLat);
+        saved.Location.X.Should().Be(RestaurantsController.DefaultLng);
+        saved.Source.Should().Be(RestaurantSource.Scraper);
+    }
+
+    [Fact]
     public async Task Import_MissingFile_Returns400()
     {
         var result = await _controller.Import(null!);

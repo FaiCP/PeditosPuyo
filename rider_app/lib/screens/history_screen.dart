@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/assignment.dart';
+import '../models/rider_active_order.dart';
 import '../services/api_service.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -11,28 +11,23 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   final _apiService = ApiService();
-  List<Assignment> _history = [];
+  List<OrderTracking> _history = [];
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadHistory();
+    _load();
   }
 
-  Future<void> _loadHistory() async {
+  Future<void> _load() async {
     try {
-      final response = await _apiService.get('/assignments');
-      final assignments = (response as List)
-          .map((json) => Assignment.fromJson(json))
-          .where((a) => a.status == 'Delivered' || a.status == 'Rejected')
-          .toList();
+      final list = await _apiService.getList('/rider/orders/history');
       setState(() {
-        _history = assignments;
+        _history = list.map((j) => OrderTracking.fromJson(j)).toList();
         _loading = false;
       });
     } catch (e) {
-      debugPrint('Error loading history: $e');
       setState(() => _loading = false);
     }
   }
@@ -50,52 +45,52 @@ class _HistoryScreenState extends State<HistoryScreen> {
           children: [
             Icon(Icons.history, size: 64, color: Colors.grey),
             SizedBox(height: 16),
-            Text('Sin historial', style: TextStyle(fontSize: 18)),
-            SizedBox(height: 8),
-            Text('Tus carreras completadas aparecerán aquí',
-                style: TextStyle(color: Colors.grey)),
+            Text('Sin entregas todavía', style: TextStyle(fontSize: 18)),
           ],
         ),
       );
     }
 
+    final earned = _history.fold(0.0, (sum, o) => sum + o.deliveryFeeAmount);
+
     return RefreshIndicator(
-      onRefresh: _loadHistory,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _history.length,
-        itemBuilder: (context, index) {
-          final assignment = _history[index];
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: assignment.status == 'Delivered'
-                    ? Colors.green.shade100
-                    : Colors.red.shade100,
-                child: Icon(
-                  assignment.status == 'Delivered'
-                      ? Icons.check_circle
-                      : Icons.cancel,
-                  color: assignment.status == 'Delivered'
-                      ? Colors.green
-                      : Colors.red,
-                ),
-              ),
-              title: Text(assignment.restaurantName),
-              subtitle: Text(
-                '${assignment.status == 'Delivered' ? 'Entregado' : 'Rechazado'} - ${_formatDate(assignment.assignedAt)}',
-                style: const TextStyle(fontSize: 12),
-              ),
-              trailing: const Icon(Icons.chevron_right),
+      onRefresh: _load,
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            color: Colors.green.shade700,
+            child: Text(
+              '${_history.length} entregas · \$${earned.toStringAsFixed(2)} en tarifas',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
-          );
-        },
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _history.length,
+              itemBuilder: (context, index) {
+                final o = _history[index];
+                return ListTile(
+                  leading: Text(o.typeEmoji, style: const TextStyle(fontSize: 24)),
+                  title: Text(o.originName),
+                  subtitle: Text(o.destinationAddress),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text('\$${o.deliveryFeeAmount.toStringAsFixed(2)}',
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text('✓ Entregado',
+                          style: TextStyle(fontSize: 11, color: Colors.green.shade700)),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
   }
 }

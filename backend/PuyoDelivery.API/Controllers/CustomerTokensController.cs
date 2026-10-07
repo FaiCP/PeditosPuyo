@@ -31,13 +31,14 @@ public class CustomerTokensController : ControllerBase
         if (string.IsNullOrWhiteSpace(req.Phone))
             return BadRequest(new { isSuccess = false, error = "Phone es obligatorio" });
 
-        if (!_tenant.CompanyId.HasValue)
+        // El tenant canónico de la company (coincide con el TenantId de sus riders y restaurantes).
+        if (!_tenant.TenantId.HasValue)
             return BadRequest(new { isSuccess = false, error = "Company no encontrada en el token" });
 
         var token = GenerateUrlSafeToken();
         var entity = new CustomerToken
         {
-            TenantId = _tenant.CompanyId.Value,
+            TenantId = _tenant.TenantId.Value,
             Token = token,
             Phone = req.Phone.Trim(),
             Name = req.Name?.Trim(),

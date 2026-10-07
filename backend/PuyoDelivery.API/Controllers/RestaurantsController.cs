@@ -131,12 +131,14 @@ public class RestaurantsController : ControllerBase
                 var restaurants = JsonSerializer.Deserialize<List<ImportRestaurantJson>>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 rows = restaurants?.Select(r => new Dictionary<string, string>
                 {
-                    ["name"] = r.Name ?? "",
+                    ["name"] = CleanScrapedName(r.Name),
                     ["address"] = r.Address ?? "",
                     ["phone"] = r.Phone ?? "",
-                    ["lat"] = r.Lat?.ToString() ?? "0",
-                    ["lng"] = r.Lng?.ToString() ?? "0",
-                    ["menuSummary"] = r.MenuSummary ?? ""
+                    // Scrapers sin coordenadas: ubicar en el centro de Puyo (editable después)
+                    ["lat"] = (r.Lat ?? DefaultLat).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ["lng"] = (r.Lng ?? DefaultLng).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ["menuSummary"] = r.MenuSummary ?? "",
+                    ["externalId"] = r.Id?.ToString() ?? ""
                 }).ToList() ?? new List<Dictionary<string, string>>();
             }
             else
@@ -154,26 +156,31 @@ public class RestaurantsController : ControllerBase
                         continue;
                     }
 
-                    if (!double.TryParse(row.GetValueOrDefault("lat"), out var lat) ||
-                        !double.TryParse(row.GetValueOrDefault("lng"), out var lng))
+                    if (!double.TryParse(row.GetValueOrDefault("lat"), System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out var lat) ||
+                        !double.TryParse(row.GetValueOrDefault("lng"), System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out var lng))
                     {
                         errors.Add($"Invalid lat/lng for {row["name"]}");
                         continue;
                     }
 
-                    var slug = row["name"].ToLower().Replace(" ", "-");
-                    var exists = await _context.Restaurants.AnyAsync(r => r.Slug == slug);
+                    var slug = Slugify(row["name"]);
+                    // El índice unique de Slug es global → chequear sin filtro de tenant
+                    var exists = await _context.Restaurants.IgnoreQueryFilters().AnyAsync(r => r.Slug == slug);
                     if (exists) continue;
 
+                    var externalId = row.GetValueOrDefault("externalId");
                     var restaurant = new Restaurant
                     {
                         TenantId = tenantId,
-                        Name = row["name"],
-                        Slug = slug,
+                        Name = Truncate(row["name"], 100),
+                        Slug = Truncate(slug, 100),
                         Address = row.GetValueOrDefault("address") ?? "",
                         Phone = row.GetValueOrDefault("phone") ?? "",
                         Location = new NetTopologySuite.Geometries.Point(lng, lat) { SRID = 4326 },
                         MenuSummary = row.GetValueOrDefault("menuSummary"),
+                        ExternalId = string.IsNullOrWhiteSpace(externalId) ? null : externalId,
                         Source = RestaurantSource.Scraper
                     };
 
@@ -240,10 +247,30 @@ public class RestaurantsController : ControllerBase
 
         return rows;
     }
+
+    // Centro de Puyo (Pastaza) — fallback para imports sin coordenadas
+    public const double DefaultLat = -1.4958;
+    public const double DefaultLng = -77.9853;
+
+    /// <summary>Recorta sufijos SEO de scrapers: "LA HACIENDA - Restaurantes, Parrilladas..." → "LA HACIENDA".</summary>
+    public static string CleanScrapedName(string? name)
+    {
+        var clean = (name ?? "").Trim();
+        var idx = clean.IndexOf(" - ", StringComparison.Ordinal);
+        if (idx > 0) clean = clean[..idx].Trim();
+        return clean;
+    }
+
+    public static string Slugify(string name) =>
+        name.Trim().ToLower().Replace(" ", "-");
+
+    public static string Truncate(string value, int max) =>
+        value.Length <= max ? value : value[..max].TrimEnd();
 }
 
 public class ImportRestaurantJson
 {
+    public int? Id { get; set; }
     public string? Name { get; set; }
     public string? Address { get; set; }
     public string? Phone { get; set; }

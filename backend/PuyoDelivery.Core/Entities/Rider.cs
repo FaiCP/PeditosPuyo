@@ -20,5 +20,4 @@ public class Rider : BaseEntity
     public decimal DeliveryFee { get; set; } = 2.00m;
 
     public DeliveryCompany Company { get; set; } = null!;
-    public ICollection<OrderAssignment> Assignments { get; set; } = new List<OrderAssignment>();
 }

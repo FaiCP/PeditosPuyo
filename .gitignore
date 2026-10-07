@@ -40,3 +40,7 @@ Thumbs.db
 # Temp
 *.tmp
 *.log
+
+# Firebase / FCM service-account keys
+backend/PuyoDelivery.API/*firebase-adminsdk*.json
+backend/PuyoDelivery.API/fcm-service-account.json

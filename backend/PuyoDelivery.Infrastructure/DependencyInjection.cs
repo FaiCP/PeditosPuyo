@@ -32,6 +32,10 @@ public static class DependencyInjection
 
         services.AddScoped<OrderService>();
 
+        services.AddSingleton<FcmV1Service>(_ => new FcmV1Service(
+            configuration["Fcm:ServiceAccountPath"],
+            configuration["Fcm:ServiceAccountJson"]));
+
         return services;
     }
 }

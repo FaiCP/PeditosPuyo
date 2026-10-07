@@ -35,10 +35,10 @@ public class CustomerTokensControllerTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private void SetCompany(Guid companyId)
+    private void SetCompany(Guid tenantId)
     {
         _tenantMock.SetupGet(t => t.Role).Returns("CompanyAdmin");
-        _tenantMock.SetupGet(t => t.CompanyId).Returns(companyId);
+        _tenantMock.SetupGet(t => t.TenantId).Returns(tenantId);
         _tenantMock.SetupGet(t => t.UserId).Returns(Guid.NewGuid());
     }
 
@@ -74,7 +74,7 @@ public class CustomerTokensControllerTests : IDisposable
     public async Task Create_NoCompany_Returns400()
     {
         _tenantMock.SetupGet(t => t.Role).Returns("CompanyAdmin");
-        _tenantMock.SetupGet(t => t.CompanyId).Returns((Guid?)null);
+        _tenantMock.SetupGet(t => t.TenantId).Returns((Guid?)null);
 
         var result = await _controller.Create(new CreateCustomerTokenRequest("099", null));
 

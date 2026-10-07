@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using PuyoDelivery.API.Controllers;
-using PuyoDelivery.API.Hubs;
 using PuyoDelivery.Core.Dtos;
 using PuyoDelivery.Core.Entities;
 using PuyoDelivery.Core.Interfaces;
@@ -19,7 +18,6 @@ public class TenantIsolationTests : IDisposable
     private readonly NullTenantAccessor _accessor;
     private readonly Mock<ICurrentTenantService> _tenantMock;
     private readonly RidersController _riders;
-    private readonly DeliveryRequestsController _deliveryRequests;
 
     private readonly DeliveryCompany _companyA;
     private readonly DeliveryCompany _companyB;
@@ -43,17 +41,9 @@ public class TenantIsolationTests : IDisposable
             TestData.CreateRider(_companyA, "Rider A1"),
             TestData.CreateRider(_companyA, "Rider A2"),
             TestData.CreateRider(_companyB, "Rider B1"));
-        _context.DeliveryRequests.AddRange(
-            TestData.CreateDeliveryRequest(_restaurantA),
-            TestData.CreateDeliveryRequest(_restaurantB));
         _context.SaveChanges();
 
         _riders = new RidersController(_context, _tenantMock.Object, TestDb.CreateUserManager(_context));
-        _deliveryRequests = new DeliveryRequestsController(
-            _context,
-            _tenantMock.Object,
-            MockHub.Create<RestaurantHub>().Object,
-            MockHub.Create<CompanyHub>().Object);
     }
 
     public void Dispose()
@@ -84,7 +74,6 @@ public class TenantIsolationTests : IDisposable
 
         _context.Riders.ToList().Should().HaveCount(3);
         _context.Restaurants.ToList().Should().HaveCount(2);
-        _context.DeliveryRequests.ToList().Should().HaveCount(2);
     }
 
     [Fact]
@@ -128,38 +117,4 @@ public class TenantIsolationTests : IDisposable
         list[0].FullName.Should().Be("Rider B1");
     }
 
-    [Fact]
-    public async Task DeliveryRequests_Create_UsesRestaurantTenant_NotCallerTenant()
-    {
-        // Restaurant belongs to TenantA; "caller" claims TenantB but request is for restaurantA
-        _tenantMock.SetupGet(t => t.TenantId).Returns(TestData.TenantB);
-        _tenantMock.SetupGet(t => t.Role).Returns("RestaurantAdmin");
-        _tenantMock.SetupGet(t => t.RestaurantId).Returns(_restaurantB.Id);
-        _accessor.TenantId = TestData.TenantB;
-
-        var result = await _deliveryRequests.Create(new CreateDeliveryRequestRequest(
-            _restaurantA.Id, "Dir", -1.0, -78.5, null));
-
-        var ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
-        var dto = ok.Value.Should().BeOfType<DeliveryRequestDto>().Subject;
-
-        // Created request must belong to the restaurant's tenant (TenantA), not the caller's (TenantB)
-        var saved = _context.DeliveryRequests.IgnoreQueryFilters().Single(r => r.Id == dto.Id);
-        saved.TenantId.Should().Be(TestData.TenantA);
-    }
-
-    [Fact]
-    public async Task RestaurantAdmin_GetAll_DoesNotSeeOtherTenantRequests()
-    {
-        _tenantMock.SetupGet(t => t.TenantId).Returns(TestData.TenantA);
-        _tenantMock.SetupGet(t => t.Role).Returns("RestaurantAdmin");
-        _accessor.TenantId = TestData.TenantA;
-
-        var result = await _deliveryRequests.GetAll();
-
-        var ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
-        var list = ok.Value.Should().BeAssignableTo<IEnumerable<DeliveryRequestDto>>().Subject.ToList();
-        list.Should().ContainSingle();
-        list[0].RestaurantName.Should().Be("Rest A");
-    }
 }

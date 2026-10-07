@@ -27,11 +27,3 @@ public record UpdateRestaurantRequest(string Name, string Slug, string Address, 
 public record MenuItemDto(Guid Id, string Name, string? Description, decimal Price, bool IsActive);
 public record CreateMenuItemRequest(string Name, string? Description, decimal Price);
 public record ImportResult(int Imported, List<string> Errors);
-
-public record DeliveryRequestDto(Guid Id, Guid RestaurantId, string RestaurantName, string Status, string DeliveryAddress, double Lat, double Lng, string? Notes, DateTime CreatedAt, DateTime? AssignedAt, DateTime? AcceptedAt, DateTime? DeliveredAt);
-public record CreateDeliveryRequestRequest(Guid RestaurantId, string DeliveryAddress, double Lat, double Lng, string? Notes);
-public record UpdateStatusRequest(string Status);
-
-public record AssignmentDto(Guid Id, Guid RequestId, Guid RiderId, string RiderName, string RestaurantName, string Status, string? RejectionReason, DateTime AssignedAt, DateTime? AcceptedAt, DateTime? RejectedAt, DateTime? DeliveredAt);
-public record CreateAssignmentRequest(Guid RequestId, Guid RiderId);
-public record RejectAssignmentRequest(string Reason);

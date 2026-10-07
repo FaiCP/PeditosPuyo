@@ -4,9 +4,15 @@ import 'config/theme.dart';
 import 'config/constants.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'services/firebase_messaging_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await FirebaseMessagingService.initialize();
+  } catch (e) {
+    debugPrint('Firebase init error: $e');
+  }
   runApp(const RiderApp());
 }
 

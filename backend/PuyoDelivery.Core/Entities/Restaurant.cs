@@ -26,5 +26,4 @@ public class Restaurant : BaseEntity
 
     public ICollection<MenuItem> MenuItems { get; set; } = new List<MenuItem>();
     public ICollection<RestaurantAdmin> Admins { get; set; } = new List<RestaurantAdmin>();
-    public ICollection<DeliveryRequest> DeliveryRequests { get; set; } = new List<DeliveryRequest>();
 }

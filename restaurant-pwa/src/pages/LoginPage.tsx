@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
@@ -17,7 +17,7 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      navigate('/dashboard');
+      navigate('/riders');
     } catch {
       setError('Credenciales inválidas. Verifica tu email y contraseña.');
     } finally {
@@ -73,9 +73,7 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-6 text-center text-sm text-gray-500">
-          <Link to="/" className="text-blue-600 hover:text-blue-800">
-            ← Volver al catálogo
-          </Link>
+          Panel de administración de riders
         </div>
       </div>
     </div>

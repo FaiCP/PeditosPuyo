@@ -55,3 +55,28 @@ public record OrderTrackingDto(
     DateTime? RestaurantConfirmedAt,
     DateTime? DeliveredAt,
     List<OrderTrackingItemDto> Items);
+
+// ---- Rider ----
+public record RiderOfferDto(
+    Guid OfferId, Guid OrderId, string Type, string OriginName, string OriginAddress,
+    string DestinationAddress, string? Description, decimal DeliveryFeeAmount,
+    List<OrderTrackingItemDto> Items, DateTime ExpiresAt);
+public record RejectOfferRequest(string? Reason);
+public record VerifyCodeRequest(string Code);
+public record ConfirmReadyRequest(bool Ready = true);
+public record RegisterFcmTokenRequest(string Token);
+
+// ---- Restaurante ----
+public record RestaurantOrderDto(
+    Guid Id, string Type, string Status, string DestinationAddress, string CustomerName, string CustomerPhone,
+    decimal ProductsAmount, decimal DeliveryFeeAmount, string PaymentMethod,
+    DateTime CreatedAt, DateTime? RiderAcceptedAt, List<OrderTrackingItemDto> Items);
+
+public record OrderEventDto(DateTime At, string ActorType, string Description);
+
+// ---- Rider app F2.6: tracking + lo que el rider necesita en pantalla (código de recolección y coordenadas) ----
+public record RiderActiveOrderDto(
+    OrderTrackingDto Order,
+    double OriginLat, double OriginLng,
+    double DestinationLat, double DestinationLng,
+    string? PickupCode);

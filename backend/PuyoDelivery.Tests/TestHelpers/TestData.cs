@@ -55,33 +55,6 @@ public static class TestData
         };
     }
 
-    public static DeliveryRequest CreateDeliveryRequest(Restaurant restaurant, string address = "Calle Falsa 123", DeliveryRequestStatus status = DeliveryRequestStatus.Pending)
-    {
-        return new DeliveryRequest
-        {
-            TenantId = restaurant.TenantId,
-            RestaurantId = restaurant.Id,
-            RequestedBy = Guid.NewGuid(),
-            Status = status,
-            DeliveryAddress = address,
-            DeliveryLocation = new Point(-78.4690, -1.0470) { SRID = 4326 },
-            Notes = "Entrega rápida"
-        };
-    }
-
-    public static OrderAssignment CreateAssignment(DeliveryRequest request, Rider rider, Guid assignedBy, AssignmentStatus status = AssignmentStatus.Pending)
-    {
-        return new OrderAssignment
-        {
-            TenantId = rider.TenantId,
-            RequestId = request.Id,
-            RiderId = rider.Id,
-            AssignedBy = assignedBy,
-            Status = status,
-            CreatedAt = DateTime.UtcNow
-        };
-    }
-
     public static Subscription CreateSubscription(DeliveryCompany company, int months = 1)
     {
         return new Subscription

@@ -332,61 +332,6 @@ namespace PuyoDelivery.Infrastructure.Migrations
                     b.ToTable("DeliveryCompanies");
                 });
 
-            modelBuilder.Entity("PuyoDelivery.Core.Entities.DeliveryRequest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("AcceptedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("AssignedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DeliveredAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeliveryAddress")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Point>("DeliveryLocation")
-                        .IsRequired()
-                        .HasColumnType("geometry(point, 4326)");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("RequestedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("RestaurantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DeliveryLocation");
-
-                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("DeliveryLocation"), "GIST");
-
-                    b.HasIndex("RestaurantId");
-
-                    b.ToTable("DeliveryRequests");
-                });
-
             modelBuilder.Entity("PuyoDelivery.Core.Entities.MenuItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -489,6 +434,9 @@ namespace PuyoDelivery.Infrastructure.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)");
 
+                    b.Property<DateTime?>("LastRestaurantNotifyAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("OfferCount")
                         .HasColumnType("integer");
 
@@ -530,6 +478,9 @@ namespace PuyoDelivery.Infrastructure.Migrations
                     b.Property<Guid?>("RestaurantId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("RestaurantNotifyCount")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("RiderAcceptedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -567,54 +518,6 @@ namespace PuyoDelivery.Infrastructure.Migrations
                     b.HasIndex("TenantId", "Status");
 
                     b.ToTable("Orders");
-                });
-
-            modelBuilder.Entity("PuyoDelivery.Core.Entities.OrderAssignment", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("AcceptedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("AssignedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DeliveredAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("RejectedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("RejectionReason")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("RequestId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("RiderId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RequestId");
-
-                    b.HasIndex("RiderId");
-
-                    b.ToTable("OrderAssignments");
                 });
 
             modelBuilder.Entity("PuyoDelivery.Core.Entities.OrderEvent", b =>
@@ -1127,17 +1030,6 @@ namespace PuyoDelivery.Infrastructure.Migrations
                     b.Navigation("Subscription");
                 });
 
-            modelBuilder.Entity("PuyoDelivery.Core.Entities.DeliveryRequest", b =>
-                {
-                    b.HasOne("PuyoDelivery.Core.Entities.Restaurant", "Restaurant")
-                        .WithMany("DeliveryRequests")
-                        .HasForeignKey("RestaurantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Restaurant");
-                });
-
             modelBuilder.Entity("PuyoDelivery.Core.Entities.MenuItem", b =>
                 {
                     b.HasOne("PuyoDelivery.Core.Entities.Restaurant", "Restaurant")
@@ -1168,25 +1060,6 @@ namespace PuyoDelivery.Infrastructure.Migrations
                     b.Navigation("CustomerToken");
 
                     b.Navigation("Restaurant");
-                });
-
-            modelBuilder.Entity("PuyoDelivery.Core.Entities.OrderAssignment", b =>
-                {
-                    b.HasOne("PuyoDelivery.Core.Entities.DeliveryRequest", "Request")
-                        .WithMany("Assignments")
-                        .HasForeignKey("RequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("PuyoDelivery.Core.Entities.Rider", "Rider")
-                        .WithMany("Assignments")
-                        .HasForeignKey("RiderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Request");
-
-                    b.Navigation("Rider");
                 });
 
             modelBuilder.Entity("PuyoDelivery.Core.Entities.OrderEvent", b =>
@@ -1284,11 +1157,6 @@ namespace PuyoDelivery.Infrastructure.Migrations
                     b.Navigation("Subscriptions");
                 });
 
-            modelBuilder.Entity("PuyoDelivery.Core.Entities.DeliveryRequest", b =>
-                {
-                    b.Navigation("Assignments");
-                });
-
             modelBuilder.Entity("PuyoDelivery.Core.Entities.Order", b =>
                 {
                     b.Navigation("Events");
@@ -1302,14 +1170,7 @@ namespace PuyoDelivery.Infrastructure.Migrations
                 {
                     b.Navigation("Admins");
 
-                    b.Navigation("DeliveryRequests");
-
                     b.Navigation("MenuItems");
-                });
-
-            modelBuilder.Entity("PuyoDelivery.Core.Entities.Rider", b =>
-                {
-                    b.Navigation("Assignments");
                 });
 
             modelBuilder.Entity("PuyoDelivery.Core.Entities.Subscription", b =>

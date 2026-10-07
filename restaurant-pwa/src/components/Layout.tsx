@@ -22,33 +22,13 @@ export default function Layout({ children, showNav = true }: LayoutProps) {
       {showNav && (
         <nav className="bg-white shadow-sm border-b border-gray-200">
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-            <Link to="/" className="text-xl font-bold text-blue-700">
+            <Link to="/riders" className="text-xl font-bold text-blue-700">
               Puyo Delivery
             </Link>
 
             <div className="flex items-center gap-4">
               {isAuthenticated ? (
                 <>
-                  <Link
-                    to="/dashboard"
-                    className={`px-3 py-2 rounded-lg text-sm font-medium ${
-                      location.pathname === '/dashboard'
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    Dashboard
-                  </Link>
-                  <Link
-                    to="/new-delivery"
-                    className={`px-3 py-2 rounded-lg text-sm font-medium ${
-                      location.pathname === '/new-delivery'
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    Nuevo Delivery
-                  </Link>
                   <Link
                     to="/riders"
                     className={`px-3 py-2 rounded-lg text-sm font-medium ${

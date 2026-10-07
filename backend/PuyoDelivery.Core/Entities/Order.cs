@@ -81,6 +81,10 @@ public class Order : BaseEntity
     public Guid? AssignedRiderId { get; set; }
     public int OfferCount { get; set; } // intentos de oferta realizados
 
+    // ---- Notificación insistente al restaurante (tras aceptar el rider) ----
+    public int RestaurantNotifyCount { get; set; }
+    public DateTime? LastRestaurantNotifyAt { get; set; }
+
     // ---- Cancelación ----
     public OrderCancelReason CancelReason { get; set; } = OrderCancelReason.None;
     public string? CancelDetail { get; set; } // ej. razón del restaurante reenviada al cliente

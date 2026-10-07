@@ -32,8 +32,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<RestaurantAdmin> RestaurantAdmins => Set<RestaurantAdmin>();
     public DbSet<Restaurant> Restaurants => Set<Restaurant>();
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
-    public DbSet<DeliveryRequest> DeliveryRequests => Set<DeliveryRequest>();
-    public DbSet<OrderAssignment> OrderAssignments => Set<OrderAssignment>();
 
     // ---- Fase 2: plataforma de pedidos B2C ----
     public DbSet<Order> Orders => Set<Order>();
@@ -98,19 +96,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             e.HasOne(x => x.Restaurant).WithMany(x => x.MenuItems).HasForeignKey(x => x.RestaurantId);
         });
 
-        builder.Entity<DeliveryRequest>(e =>
-        {
-            e.HasOne(x => x.Restaurant).WithMany(x => x.DeliveryRequests).HasForeignKey(x => x.RestaurantId);
-            e.Property(x => x.DeliveryLocation).HasColumnType("geometry(point, 4326)");
-            e.HasIndex(x => x.DeliveryLocation).HasMethod("GIST");
-        });
-
-        builder.Entity<OrderAssignment>(e =>
-        {
-            e.HasOne(x => x.Request).WithMany(x => x.Assignments).HasForeignKey(x => x.RequestId);
-            e.HasOne(x => x.Rider).WithMany(x => x.Assignments).HasForeignKey(x => x.RiderId);
-        });
-
         // ---- Fase 2 ----
         builder.Entity<CustomerToken>(e =>
         {
@@ -170,9 +155,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Rider>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
         builder.Entity<Restaurant>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
         builder.Entity<MenuItem>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
-        builder.Entity<DeliveryRequest>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
-        builder.Entity<OrderAssignment>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
-        builder.Entity<CustomerToken>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
         builder.Entity<Order>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
         builder.Entity<OrderItem>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
         builder.Entity<OrderEvent>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);

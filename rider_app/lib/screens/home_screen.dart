@@ -7,9 +7,10 @@ import '../services/auth_service.dart';
 import '../services/location_service.dart';
 import '../services/notification_service.dart';
 import '../services/signalr_service.dart';
-import '../models/assignment.dart';
-import '../widgets/new_order_dialog.dart';
-import 'active_delivery_screen.dart';
+import '../services/firebase_messaging_service.dart';
+import '../models/rider_offer.dart';
+import '../widgets/order_offer_dialog.dart';
+import 'active_orders_screen.dart';
 import 'history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -29,9 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isOnline = false;
   int _selectedIndex = 0;
   String _riderId = '';
-  String _riderName = '';
-  Assignment? _activeAssignment;
-  final List<Assignment> _pendingAssignments = [];
+  final Set<String> _dialogOpenOfferIds = {};
   StreamSubscription? _signalRSubscription;
 
   @override
@@ -45,24 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _riderId = prefs.getString(Constants.riderIdKey) ?? '';
-      _riderName = prefs.getString(Constants.userNameKey) ?? 'Rider';
     });
-
-    await _loadActiveAssignment();
-  }
-
-  Future<void> _loadActiveAssignment() async {
-    try {
-      final response = await _apiService.get('/assignments/rider/active');
-      final assignments = (response as List)
-          .map((json) => Assignment.fromJson(json))
-          .toList();
-      if (assignments.isNotEmpty) {
-        setState(() => _activeAssignment = assignments.first);
-      }
-    } catch (e) {
-      debugPrint('Error loading assignments: $e');
-    }
   }
 
   Future<void> _toggleOnline() async {
@@ -70,30 +52,29 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _isOnline = newStatus);
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final riderId = prefs.getString(Constants.riderIdKey) ?? '';
-
-      if (riderId.isNotEmpty) {
-        await _apiService.put('/riders/$riderId/status', {
+      if (_riderId.isNotEmpty) {
+        await _apiService.put('/riders/$_riderId/status', {
           'isOnline': newStatus,
         });
       }
 
       if (newStatus) {
-        await _locationService.startTracking(riderId);
-        await _signalRService.connect(riderId);
+        await _locationService.startTracking(_riderId);
+        await _signalRService.connect(_riderId);
         _listenToSignalR();
+        await FirebaseMessagingService.refreshToken();
         _notificationService.showNotification(
           'En línea',
-          'Estás recibiendo nuevas carreras',
+          'Estás recibiendo nuevos pedidos',
         );
+        await _checkPendingOffers();
       } else {
         _locationService.stopTracking();
         _signalRService.disconnect();
         _signalRSubscription?.cancel();
         _notificationService.showNotification(
           'Fuera de línea',
-          'No recibirás nuevas carreras',
+          'No recibirás nuevos pedidos',
         );
       }
     } catch (e) {
@@ -108,81 +89,85 @@ class _HomeScreenState extends State<HomeScreen> {
       final event = message['event'];
       final data = message['data'];
 
-      if (event == 'newAssignment' && data != null) {
-        _handleNewAssignment(data as Map<String, dynamic>);
+      if (event == 'newOrderOffer' && data != null) {
+        _checkPendingOffers();
+      } else if (event == 'orderGreenLight' && data != null) {
+        _notificationService.showNotification(
+          'Luz verde 🟢',
+          'Pedido listo en el origen — código: ${data['pickupCode'] ?? ''}',
+        );
       }
     });
   }
 
-  void _handleNewAssignment(Map<String, dynamic> data) {
-    final assignment = Assignment.fromJson({
-      'id': data['assignmentId'] ?? '',
-      'requestId': data['requestId'] ?? '',
-      'riderId': _riderId,
-      'riderName': _riderName,
-      'restaurantName': data['restaurantName'] ?? '',
-      'status': 'Pending',
-      'assignedAt': DateTime.now().toIso8601String(),
-    });
-
-    setState(() => _pendingAssignments.add(assignment));
-
-    _notificationService.showNotification(
-      'Nueva carrera',
-      'Desde ${assignment.restaurantName}',
-    );
-
-    _showNewOrderDialog(assignment, data);
-  }
-
-  Future<void> _showNewOrderDialog(
-    Assignment assignment,
-    Map<String, dynamic> data,
-  ) async {
-    final result = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => NewOrderDialog(
-        assignmentId: assignment.id,
-        restaurantName: assignment.restaurantName,
-        pickupAddress: data['pickupAddress'] ?? '',
-        deliveryAddress: data['deliveryAddress'] ?? '',
-        distanceKm: (data['distanceKm'] ?? 0).toDouble(),
-      ),
-    );
-
-    if (result == 'accepted') {
-      await _acceptAssignment(assignment.id);
-    } else if (result == 'rejected') {
-      await _rejectAssignment(assignment.id, 'Rechazado por el rider');
-    }
-
-    setState(() {
-      _pendingAssignments.removeWhere((a) => a.id == assignment.id);
-    });
-  }
-
-  Future<void> _acceptAssignment(String assignmentId) async {
+  /// Trae las ofertas pendientes del backend y las muestra una por una.
+  Future<void> _checkPendingOffers() async {
     try {
-      await _apiService.put('/assignments/$assignmentId/accept', {});
-      await _loadActiveAssignment();
+      final list = await _apiService.getList('/rider/orders/offers');
+      final offers =
+          list.map((j) => RiderOffer.fromJson(j)).where((o) => o.offerId.isNotEmpty).toList();
+
+      for (final offer in offers) {
+        if (_dialogOpenOfferIds.contains(offer.offerId)) continue;
+        _dialogOpenOfferIds.add(offer.offerId);
+
+        _notificationService.showNotification(
+          'Nuevo ${offer.typeLabel.toLowerCase()}',
+          '${offer.originName} → ${offer.destinationAddress}',
+        );
+
+        if (!mounted) return;
+        final result = await showDialog<String>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => OrderOfferDialog(offer: offer),
+        );
+
+        _dialogOpenOfferIds.remove(offer.offerId);
+
+        if (result == 'accepted') {
+          await _acceptOffer(offer);
+        } else if (result == 'rejected') {
+          await _rejectOffer(offer);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading offers: $e');
+    }
+  }
+
+  Future<void> _acceptOffer(RiderOffer offer) async {
+    try {
+      await _apiService.postEmpty('/rider/orders/offers/${offer.offerId}/accept');
       _notificationService.showNotification(
-        'Carrera aceptada',
-        'Dirígete al restaurante',
+        'Aceptado',
+        offer.type == 'restaurant'
+            ? 'Ve al restaurante — espera la confirmación'
+            : 'Ve al punto de origen',
       );
     } catch (e) {
-      debugPrint('Error accepting assignment: $e');
+      debugPrint('Error accepting offer: $e');
+      if (mounted) {
+        _snack('No se pudo aceptar: $e');
+      }
     }
   }
 
-  Future<void> _rejectAssignment(String assignmentId, String reason) async {
+  Future<void> _rejectOffer(RiderOffer offer) async {
     try {
-      await _apiService.put('/assignments/$assignmentId/reject', {
-        'reason': reason,
+      await _apiService.post('/rider/orders/offers/${offer.offerId}/reject', {
+        'reason': 'Rechazado por el rider',
       });
     } catch (e) {
-      debugPrint('Error rejecting assignment: $e');
+      debugPrint('Error rejecting offer: $e');
     }
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: Colors.red,
+    ));
   }
 
   Future<void> _logout() async {
@@ -208,7 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_riderName.isNotEmpty ? _riderName : 'Puyo Delivery'),
+        title: const Text('Puyo Rider'),
         actions: [
           Container(
             margin: const EdgeInsets.only(right: 8),
@@ -239,7 +224,7 @@ class _HomeScreenState extends State<HomeScreen> {
         index: _selectedIndex,
         children: [
           _buildMapTab(),
-          ActiveDeliveryScreen(assignment: _activeAssignment),
+          const ActiveOrdersScreen(),
           const HistoryScreen(),
         ],
       ),
@@ -249,8 +234,7 @@ class _HomeScreenState extends State<HomeScreen> {
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Mapa'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.delivery_dining), label: 'Activo'),
+          BottomNavigationBarItem(icon: Icon(Icons.local_shipping), label: 'Pedidos'),
           BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Historial'),
         ],
       ),
@@ -269,23 +253,22 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            _isOnline ? 'En línea - Recibiendo carreras' : 'Fuera de línea',
+            _isOnline ? 'En línea — recibiendo pedidos' : 'Fuera de línea',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 8),
           Text(
             _isOnline
                 ? 'Tu ubicación se está compartiendo'
-                : 'Actívate para recibir carreras',
+                : 'Actívate para recibir pedidos',
             style: const TextStyle(color: Colors.grey),
           ),
-          if (_pendingAssignments.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            Badge(
-              label: Text('${_pendingAssignments.length}'),
-              child: const Icon(Icons.notifications_active, size: 48),
-            ),
-          ],
+          const SizedBox(height: 24),
+          TextButton.icon(
+            onPressed: _checkPendingOffers,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Revisar ofertas ahora'),
+          ),
         ],
       ),
     );

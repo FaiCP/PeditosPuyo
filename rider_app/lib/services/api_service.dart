@@ -28,6 +28,18 @@ class ApiService {
     return _handleResponse(response);
   }
 
+  Future<List<dynamic>> getList(String path) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl$path'),
+      headers: await _headers(),
+    );
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return jsonDecode(response.body) as List<dynamic>;
+    }
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    throw Exception(json['error'] ?? 'Error ${response.statusCode}');
+  }
+
   Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body) async {
     final response = await http.post(
       Uri.parse('$baseUrl$path'),
@@ -35,6 +47,16 @@ class ApiService {
       body: jsonEncode(body),
     );
     return _handleResponse(response);
+  }
+
+  Future<void> postEmpty(String path) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl$path'),
+      headers: await _headers(),
+    );
+    if (!(response.statusCode >= 200 && response.statusCode < 300)) {
+      throw Exception('Error ${response.statusCode}');
+    }
   }
 
   Future<Map<String, dynamic>> put(String path, Map<String, dynamic> body) async {

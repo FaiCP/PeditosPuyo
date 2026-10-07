@@ -93,8 +93,13 @@ builder.Services.AddAuthentication(options =>
 // SignalR
 builder.Services.AddSignalR();
 
+// Time (testable) + motor de asignación Fase 2
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<PuyoDelivery.API.Background.AssignmentEngine>();
+
 // Background Services
 builder.Services.AddHostedService<PuyoDelivery.API.Background.RiderCleanupService>();
+builder.Services.AddHostedService<PuyoDelivery.API.Background.OrderAssignmentWorker>();
 
 // Infrastructure
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -126,11 +131,16 @@ app.MapHub<RestaurantHub>("/hubs/restaurant");
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
-// Auto-migrate en desarrollo
+// Auto-migrate en desarrollo + seed de datos locales
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     db.Database.Migrate();
+
+    if (app.Environment.IsDevelopment())
+        await PuyoDelivery.API.Development.DevelopmentDataSeeder.SeedAsync(
+            scope.ServiceProvider, app.Environment.ContentRootPath,
+            scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DevelopmentDataSeeder"));
 }
 
 app.Run();

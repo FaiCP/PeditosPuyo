@@ -19,21 +19,6 @@ export interface MenuItem {
   isActive: boolean;
 }
 
-export interface DeliveryRequest {
-  id: string;
-  restaurantId: string;
-  restaurantName: string;
-  status: string;
-  deliveryAddress: string;
-  lat: number;
-  lng: number;
-  notes?: string;
-  createdAt: string;
-  assignedAt?: string;
-  acceptedAt?: string;
-  deliveredAt?: string;
-}
-
 export interface Rider {
   id: string;
   fullName: string;
@@ -44,20 +29,6 @@ export interface Rider {
   lat?: number;
   lng?: number;
   distanceKm?: number;
-}
-
-export interface Assignment {
-  id: string;
-  requestId: string;
-  riderId: string;
-  riderName: string;
-  restaurantName: string;
-  status: string;
-  rejectionReason?: string;
-  createdAt: string;
-  acceptedAt?: string;
-  rejectedAt?: string;
-  deliveredAt?: string;
 }
 
 export interface User {
