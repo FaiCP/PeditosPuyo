@@ -30,6 +30,8 @@ public static class DependencyInjection
         services.AddScoped<GeocodingService>();
         services.AddHttpClient<GeocodingService>();
 
+        services.AddScoped<OrderService>();
+
         return services;
     }
 }

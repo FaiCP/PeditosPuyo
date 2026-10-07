@@ -95,4 +95,30 @@ public static class TestData
             ExpiresAt = DateTime.UtcNow.AddMonths(months)
         };
     }
+
+    public static MenuItem CreateMenuItem(Restaurant restaurant, string name = "Hamburguesa", decimal price = 5.00m)
+    {
+        return new MenuItem
+        {
+            TenantId = restaurant.TenantId,
+            RestaurantId = restaurant.Id,
+            Name = name,
+            Price = price,
+            IsActive = true
+        };
+    }
+
+    public static CustomerToken CreateCustomerToken(Guid tenantId, string? token = null)
+    {
+        return new CustomerToken
+        {
+            TenantId = tenantId,
+            Token = token ?? Guid.NewGuid().ToString("N"),
+            Phone = "0991112222",
+            Name = "Cliente Test",
+            CreatedById = Guid.NewGuid(),
+            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            IsActive = true
+        };
+    }
 }
