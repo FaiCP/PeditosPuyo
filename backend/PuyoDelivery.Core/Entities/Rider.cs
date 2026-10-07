@@ -16,6 +16,9 @@ public class Rider : BaseEntity
     public DateTime? LastLocationUpdate { get; set; }
     public bool IsActive { get; set; } = true;
 
+    /// <summary>Tarifa de carrera que cobra este rider en efectivo al cliente (Puyo: 1.50 - 2.50 USD).</summary>
+    public decimal DeliveryFee { get; set; } = 2.00m;
+
     public DeliveryCompany Company { get; set; } = null!;
     public ICollection<OrderAssignment> Assignments { get; set; } = new List<OrderAssignment>();
 }

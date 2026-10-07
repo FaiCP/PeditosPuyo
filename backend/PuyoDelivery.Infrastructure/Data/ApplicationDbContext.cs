@@ -35,6 +35,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<DeliveryRequest> DeliveryRequests => Set<DeliveryRequest>();
     public DbSet<OrderAssignment> OrderAssignments => Set<OrderAssignment>();
 
+    // ---- Fase 2: plataforma de pedidos B2C ----
+    public DbSet<Order> Orders => Set<Order>();
+    public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<CustomerToken> CustomerTokens => Set<CustomerToken>();
+    public DbSet<OrderEvent> OrderEvents => Set<OrderEvent>();
+    public DbSet<RiderOffer> RiderOffers => Set<RiderOffer>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -104,6 +111,58 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             e.HasOne(x => x.Rider).WithMany(x => x.Assignments).HasForeignKey(x => x.RiderId);
         });
 
+        // ---- Fase 2 ----
+        builder.Entity<CustomerToken>(e =>
+        {
+            e.HasIndex(x => x.Token).IsUnique();
+            e.Property(x => x.Token).HasMaxLength(64);
+            e.Property(x => x.Phone).HasMaxLength(30);
+        });
+
+        builder.Entity<Order>(e =>
+        {
+            e.Property(x => x.OriginLocation).HasColumnType("geometry(point, 4326)");
+            e.Property(x => x.DestinationLocation).HasColumnType("geometry(point, 4326)");
+            e.HasIndex(x => x.OriginLocation).HasMethod("GIST");
+            e.HasIndex(x => x.DestinationLocation).HasMethod("GIST");
+            e.HasIndex(x => new { x.TenantId, x.Status });
+            e.HasIndex(x => x.CustomerTokenId);
+
+            e.Property(x => x.ProductsAmount).HasPrecision(10, 2);
+            e.Property(x => x.DeliveryFeeAmount).HasPrecision(10, 2);
+            e.Property(x => x.FeeCollectedAmount).HasPrecision(10, 2);
+
+            e.HasOne(x => x.CustomerToken).WithMany(t => t.Orders).HasForeignKey(x => x.CustomerTokenId);
+            e.HasOne(x => x.Restaurant).WithMany().HasForeignKey(x => x.RestaurantId);
+            e.HasOne(x => x.AssignedRider).WithMany().HasForeignKey(x => x.AssignedRiderId);
+            e.Property(x => x.PickupCode).HasMaxLength(10);
+            e.Property(x => x.DeliveryCode).HasMaxLength(10);
+        });
+
+        builder.Entity<OrderItem>(e =>
+        {
+            e.Property(x => x.UnitPrice).HasPrecision(10, 2);
+            e.HasOne(x => x.Order).WithMany(o => o.Items).HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.MenuItem).WithMany().HasForeignKey(x => x.MenuItemId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<OrderEvent>(e =>
+        {
+            e.HasIndex(x => x.OrderId);
+            e.HasOne(x => x.Order).WithMany(o => o.Events).HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<RiderOffer>(e =>
+        {
+            e.HasIndex(x => x.OrderId);
+            e.HasIndex(x => x.RiderId);
+            e.HasOne(x => x.Order).WithMany(o => o.Offers).HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Rider).WithMany().HasForeignKey(x => x.RiderId);
+        });
+
+        builder.Entity<Rider>().Property(x => x.DeliveryFee).HasPrecision(10, 2);
+        builder.Entity<Restaurant>().Property(x => x.PaymentQrUrl).HasMaxLength(2000);
+
         // Global Query Filter para multi-tenancy (null = mostrar todos, para endpoints públicos)
         builder.Entity<DeliveryCompany>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
         builder.Entity<Subscription>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
@@ -113,6 +172,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<MenuItem>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
         builder.Entity<DeliveryRequest>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
         builder.Entity<OrderAssignment>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
+        builder.Entity<CustomerToken>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
+        builder.Entity<Order>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
+        builder.Entity<OrderItem>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
+        builder.Entity<OrderEvent>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
+        builder.Entity<RiderOffer>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
     }
 }
 
