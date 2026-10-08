@@ -89,21 +89,65 @@ public class AuthController : ControllerBase
         // Crear perfil según rol
         if (request.Role == "RestaurantAdmin")
         {
+            var company = await _context.DeliveryCompanies.IgnoreQueryFilters().FirstOrDefaultAsync();
+            if (company == null)
+                return BadRequest(new { isSuccess = false, error = "No existe una empresa configurada en la plataforma" });
+
+            var restaurantName = !string.IsNullOrWhiteSpace(request.RestaurantName)
+                ? request.RestaurantName.Trim()
+                : $"{request.FullName}'s Restaurant";
+            var restaurantAddress = !string.IsNullOrWhiteSpace(request.RestaurantAddress)
+                ? request.RestaurantAddress.Trim()
+                : "";
+            var restaurantPhone = !string.IsNullOrWhiteSpace(request.RestaurantPhone)
+                ? request.RestaurantPhone.Trim()
+                : request.Phone;
+
+            if (string.IsNullOrWhiteSpace(restaurantName) || string.IsNullOrWhiteSpace(restaurantAddress) || string.IsNullOrWhiteSpace(restaurantPhone))
+                return BadRequest(new { isSuccess = false, error = "Nombre, dirección y teléfono del restaurante son obligatorios" });
+
+            var baseSlug = Slugify(restaurantName);
+            var slug = baseSlug;
+            var suffix = 2;
+            while (await _context.Restaurants.IgnoreQueryFilters().AnyAsync(r => r.Slug == slug))
+            {
+                slug = $"{baseSlug}-{suffix++}";
+            }
+
             var restaurant = new Restaurant
             {
-                TenantId = Guid.NewGuid(),
-                Name = $"{request.FullName}'s Restaurant",
-                Slug = request.Email.Split('@')[0].ToLower(),
-                Address = "",
-                Phone = request.Phone,
-                Location = new NetTopologySuite.Geometries.Point(0, 0) { SRID = 4326 }
+                TenantId = company.TenantId,
+                Name = restaurantName,
+                Slug = slug,
+                Address = restaurantAddress,
+                Phone = restaurantPhone,
+                LogoUrl = request.LogoUrl,
+                Location = new NetTopologySuite.Geometries.Point(0, 0) { SRID = 4326 },
+                Source = RestaurantSource.Manual
             };
             _context.Restaurants.Add(restaurant);
             await _context.SaveChangesAsync();
 
+            if (request.InitialMenuItems?.Count > 0)
+            {
+                foreach (var item in request.InitialMenuItems)
+                {
+                    if (string.IsNullOrWhiteSpace(item.Name)) continue;
+                    _context.MenuItems.Add(new MenuItem
+                    {
+                        TenantId = company.TenantId,
+                        RestaurantId = restaurant.Id,
+                        Name = item.Name.Trim(),
+                        Description = item.Description,
+                        Price = item.Price,
+                        ImageUrl = item.ImageUrl
+                    });
+                }
+            }
+
             var admin = new RestaurantAdmin
             {
-                TenantId = restaurant.TenantId,
+                TenantId = company.TenantId,
                 UserId = Guid.Parse(user.Id),
                 RestaurantId = restaurant.Id,
                 FullName = request.FullName,
@@ -111,7 +155,7 @@ public class AuthController : ControllerBase
                 Phone = request.Phone
             };
             _context.RestaurantAdmins.Add(admin);
-            user.TenantId = restaurant.TenantId;
+            user.TenantId = company.TenantId;
             restaurantId = restaurant.Id;
 
             await _userManager.UpdateAsync(user);
@@ -155,4 +199,7 @@ public class AuthController : ControllerBase
 
         return Ok(new LoginResponse(token, user.Id, user.Role, user.TenantId, user.FullName, user.Email!, companyId, restaurantId, riderId));
     }
+
+    private static string Slugify(string value) =>
+        value.Trim().ToLowerInvariant().Replace(" ", "-");
 }

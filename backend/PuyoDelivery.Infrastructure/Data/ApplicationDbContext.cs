@@ -32,6 +32,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<RestaurantAdmin> RestaurantAdmins => Set<RestaurantAdmin>();
     public DbSet<Restaurant> Restaurants => Set<Restaurant>();
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
+    public DbSet<RestaurantClaim> RestaurantClaims => Set<RestaurantClaim>();
 
     // ---- Fase 2: plataforma de pedidos B2C ----
     public DbSet<Order> Orders => Set<Order>();
@@ -80,6 +81,15 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<RestaurantAdmin>(e =>
         {
             e.HasOne(x => x.Restaurant).WithMany(x => x.Admins).HasForeignKey(x => x.RestaurantId);
+        });
+
+        builder.Entity<RestaurantClaim>(e =>
+        {
+            e.HasIndex(x => x.RestaurantId);
+            e.HasIndex(x => x.Status);
+            e.HasOne(x => x.Restaurant).WithMany(x => x.Claims).HasForeignKey(x => x.RestaurantId);
+            e.Property(x => x.Email).HasMaxLength(256);
+            e.Property(x => x.Phone).HasMaxLength(30);
         });
 
         builder.Entity<Restaurant>(e =>
@@ -147,6 +157,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
         builder.Entity<Rider>().Property(x => x.DeliveryFee).HasPrecision(10, 2);
         builder.Entity<Restaurant>().Property(x => x.PaymentQrUrl).HasMaxLength(2000);
+        builder.Entity<Restaurant>().Property(x => x.LogoUrl).HasMaxLength(2000);
+        builder.Entity<MenuItem>().Property(x => x.ImageUrl).HasMaxLength(2000);
 
         // Global Query Filter para multi-tenancy (null = mostrar todos, para endpoints públicos)
         builder.Entity<DeliveryCompany>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
@@ -159,6 +171,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<OrderItem>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
         builder.Entity<OrderEvent>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
         builder.Entity<RiderOffer>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
+        builder.Entity<RestaurantClaim>().HasQueryFilter(x => _tenantAccessor.TenantId == null || x.TenantId == _tenantAccessor.TenantId);
     }
 }
 

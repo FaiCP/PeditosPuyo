@@ -1,7 +1,19 @@
+using System.Collections.Generic;
+
 namespace PuyoDelivery.Core.Dtos;
 
 public record LoginRequest(string Email, string Password);
-public record RegisterRequest(string FullName, string Email, string Phone, string Password, string Role);
+public record RegisterRequest(
+    string FullName,
+    string Email,
+    string Phone,
+    string Password,
+    string Role,
+    string? RestaurantName = null,
+    string? RestaurantAddress = null,
+    string? RestaurantPhone = null,
+    string? LogoUrl = null,
+    List<InitialMenuItemRequest>? InitialMenuItems = null);
 
 public record LoginResponse(string Token, string UserId, string Role, Guid? TenantId, string FullName, string Email, Guid? CompanyId = null, Guid? RestaurantId = null, Guid? RiderId = null);
 
@@ -23,9 +35,12 @@ public record RiderStatusRequest(bool IsOnline);
 public record UpdateLocationRequest(double Lat, double Lng);
 public record RiderNearbyDto(Guid Id, string FullName, string VehiclePlate, double DistanceKm, double Lat, double Lng);
 
-public record RestaurantDto(Guid Id, string Name, string Slug, string Address, string Phone, double Lat, double Lng, string? MenuSummary, bool IsActive, string Source);
+public record RestaurantDto(Guid Id, string Name, string Slug, string Address, string Phone, double Lat, double Lng, string? MenuSummary, bool IsActive, string Source, string? LogoUrl);
 public record CreateRestaurantRequest(string Name, string Slug, string Address, string Phone, double Lat, double Lng, string? MenuSummary);
-public record UpdateRestaurantRequest(string Name, string Slug, string Address, string Phone, double Lat, double Lng, string? MenuSummary, bool IsActive);
-public record MenuItemDto(Guid Id, string Name, string? Description, decimal Price, bool IsActive);
-public record CreateMenuItemRequest(string Name, string? Description, decimal Price);
+public record UpdateRestaurantRequest(string Name, string Slug, string Address, string Phone, double Lat, double Lng, string? MenuSummary, bool IsActive, string? LogoUrl = null);
+public record MenuItemDto(Guid Id, string Name, string? Description, decimal Price, bool IsActive, string? ImageUrl);
+public record CreateMenuItemRequest(string Name, string? Description, decimal Price, string? ImageUrl = null);
+public record UpdateMenuItemRequest(string Name, string? Description, decimal Price, bool IsActive, string? ImageUrl = null);
+
+public record InitialMenuItemRequest(string Name, string? Description, decimal Price, string? ImageUrl);
 public record ImportResult(int Imported, List<string> Errors);

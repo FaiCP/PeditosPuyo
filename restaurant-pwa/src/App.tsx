@@ -2,6 +2,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './context/AuthContext';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
+import RegisterRestaurantPage from './pages/RegisterRestaurantPage';
+import ClaimRestaurantPage from './pages/ClaimRestaurantPage';
+import RestaurantDashboardPage from './pages/RestaurantDashboardPage';
+import RestaurantClaimsPage from './pages/RestaurantClaimsPage';
 import RidersPage from './pages/RidersPage';
 import CustomerLayout from './pages/customer/CustomerLayout';
 import CustomerCatalogPage from './pages/customer/CustomerCatalogPage';
@@ -30,6 +34,38 @@ function App() {
             element={
               <Layout showNav={false}>
                 <LoginPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/register-restaurant"
+            element={
+              <Layout showNav={false}>
+                <RegisterRestaurantPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/claim-restaurant"
+            element={
+              <Layout showNav={false}>
+                <ClaimRestaurantPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/restaurant/dashboard"
+            element={
+              <Layout>
+                <RestaurantDashboardPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/claims"
+            element={
+              <Layout>
+                <RestaurantClaimsPage />
               </Layout>
             }
           />

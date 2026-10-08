@@ -67,7 +67,15 @@ public class AuthControllerTests : IDisposable
     [Fact]
     public async Task Register_RestaurantAdmin_CreatesRestaurantAndProfile()
     {
-        var request = new RegisterRequest("Maria Lopez", "maria@test.com", "0991111111", "Test123!", "RestaurantAdmin");
+        var company = TestData.CreateCompany();
+        _context.DeliveryCompanies.Add(company);
+        await _context.SaveChangesAsync();
+
+        var request = new RegisterRequest(
+            "Maria Lopez", "maria@test.com", "0991111111", "Test123!", "RestaurantAdmin",
+            RestaurantName: "Parrilladas María",
+            RestaurantAddress: "Av. Principal 123",
+            RestaurantPhone: "0991111111");
 
         var result = await _controller.Register(request);
 
@@ -78,8 +86,9 @@ public class AuthControllerTests : IDisposable
         response.TenantId.Should().NotBeNull();
         response.RestaurantId.Should().NotBeNull();
 
-        var restaurant = _context.Restaurants.IgnoreQueryFilters().Single(r => r.Name == "Maria Lopez's Restaurant");
-        response.TenantId.Should().Be(restaurant.TenantId);
+        var restaurant = _context.Restaurants.IgnoreQueryFilters().Single(r => r.Name == "Parrilladas María");
+        response.TenantId.Should().Be(company.TenantId);
+        restaurant.TenantId.Should().Be(company.TenantId);
 
         var admin = _context.RestaurantAdmins.IgnoreQueryFilters().Single(a => a.Email == "maria@test.com");
         admin.RestaurantId.Should().Be(restaurant.Id);

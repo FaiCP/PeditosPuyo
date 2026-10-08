@@ -8,5 +8,8 @@ public class MenuItem : BaseEntity
     public decimal Price { get; set; }
     public bool IsActive { get; set; } = true;
 
+    /// <summary>Opcional. URL de imagen del ítem.</summary>
+    public string? ImageUrl { get; set; }
+
     public Restaurant Restaurant { get; set; } = null!;
 }

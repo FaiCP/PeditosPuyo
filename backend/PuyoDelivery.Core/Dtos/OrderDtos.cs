@@ -5,9 +5,9 @@ public record CreateCustomerTokenRequest(string Phone, string? Name);
 public record CustomerTokenDto(Guid Id, string Token, string Phone, string? Name, DateTime ExpiresAt, string PublicUrl);
 
 // ---- Catálogo público (cliente) ----
-public record PublicRestaurantDto(Guid Id, string Name, string Address, string Phone, string? MenuSummary, int ItemCount, bool HasPaymentQr);
-public record PublicMenuItemDto(Guid Id, string Name, string? Description, decimal Price);
-public record PublicRestaurantDetailDto(Guid Id, string Name, string Address, string Phone, string? PaymentQrUrl, List<PublicMenuItemDto> Menu);
+public record PublicRestaurantDto(Guid Id, string Name, string Address, string Phone, string? MenuSummary, int ItemCount, bool HasPaymentQr, string? LogoUrl);
+public record PublicMenuItemDto(Guid Id, string Name, string? Description, decimal Price, string? ImageUrl);
+public record PublicRestaurantDetailDto(Guid Id, string Name, string Address, string Phone, string? PaymentQrUrl, string? LogoUrl, List<PublicMenuItemDto> Menu);
 
 // ---- Crear orden ----
 public record OrderItemLine(Guid? MenuItemId, string Name, int Quantity, decimal UnitPrice, string? Notes);

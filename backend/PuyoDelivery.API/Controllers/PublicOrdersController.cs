@@ -56,7 +56,8 @@ public class PublicOrdersController : ControllerBase
             .Select(r => new PublicRestaurantDto(
                 r.Id, r.Name, r.Address, r.Phone, r.MenuSummary,
                 r.MenuItems.Count(m => m.IsActive),
-                r.PaymentQrUrl != null && r.PaymentQrUrl != ""))
+                r.PaymentQrUrl != null && r.PaymentQrUrl != "",
+                r.LogoUrl))
             .ToListAsync();
 
         return Ok(restaurants);
@@ -76,8 +77,9 @@ public class PublicOrdersController : ControllerBase
 
         return Ok(new PublicRestaurantDetailDto(
             restaurant.Id, restaurant.Name, restaurant.Address, restaurant.Phone, restaurant.PaymentQrUrl,
+            restaurant.LogoUrl,
             restaurant.MenuItems
-                .Select(m => new PublicMenuItemDto(m.Id, m.Name, m.Description, m.Price))
+                .Select(m => new PublicMenuItemDto(m.Id, m.Name, m.Description, m.Price, m.ImageUrl))
                 .ToList()));
     }
 

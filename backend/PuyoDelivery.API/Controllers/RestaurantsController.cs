@@ -32,7 +32,7 @@ public class RestaurantsController : ControllerBase
             .Select(r => new RestaurantDto(
                 r.Id, r.Name, r.Slug, r.Address, r.Phone,
                 r.Location.Y, r.Location.X, r.MenuSummary, r.IsActive,
-                r.Source.ToString()))
+                r.Source.ToString(), r.LogoUrl))
             .ToListAsync();
 
         return Ok(restaurants);
@@ -48,7 +48,7 @@ public class RestaurantsController : ControllerBase
         return Ok(new RestaurantDto(
             restaurant.Id, restaurant.Name, restaurant.Slug, restaurant.Address, restaurant.Phone,
             restaurant.Location.Y, restaurant.Location.X, restaurant.MenuSummary, restaurant.IsActive,
-            restaurant.Source.ToString()));
+            restaurant.Source.ToString(), restaurant.LogoUrl));
     }
 
     [HttpGet("{id:guid}/menu")]
@@ -57,7 +57,7 @@ public class RestaurantsController : ControllerBase
     {
         var menuItems = await _context.MenuItems
             .Where(m => m.RestaurantId == id && m.IsActive)
-            .Select(m => new MenuItemDto(m.Id, m.Name, m.Description, m.Price, m.IsActive))
+            .Select(m => new MenuItemDto(m.Id, m.Name, m.Description, m.Price, m.IsActive, m.ImageUrl))
             .ToListAsync();
 
         return Ok(menuItems);
@@ -86,7 +86,7 @@ public class RestaurantsController : ControllerBase
 
         return Ok(new RestaurantDto(
             restaurant.Id, restaurant.Name, restaurant.Slug, restaurant.Address, restaurant.Phone,
-            request.Lat, request.Lng, restaurant.MenuSummary, restaurant.IsActive, restaurant.Source.ToString()));
+            request.Lat, request.Lng, restaurant.MenuSummary, restaurant.IsActive, restaurant.Source.ToString(), restaurant.LogoUrl));
     }
 
     [HttpPut("{id:guid}")]
@@ -103,6 +103,7 @@ public class RestaurantsController : ControllerBase
         restaurant.Location = new NetTopologySuite.Geometries.Point(request.Lng, request.Lat) { SRID = 4326 };
         restaurant.MenuSummary = request.MenuSummary;
         restaurant.IsActive = request.IsActive;
+        restaurant.LogoUrl = request.LogoUrl;
 
         await _context.SaveChangesAsync();
         return NoContent();
@@ -204,7 +205,7 @@ public class RestaurantsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/menu-items")]
-    [Authorize(Roles = "SuperAdmin,CompanyAdmin,RestaurantAdmin")]
+    [Authorize(Roles = "SuperAdmin,CompanyAdmin")]
     public async Task<ActionResult<MenuItemDto>> AddMenuItem(Guid id, [FromBody] CreateMenuItemRequest request)
     {
         var restaurant = await _context.Restaurants.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == id);
@@ -216,13 +217,14 @@ public class RestaurantsController : ControllerBase
             RestaurantId = id,
             Name = request.Name,
             Description = request.Description,
-            Price = request.Price
+            Price = request.Price,
+            ImageUrl = request.ImageUrl
         };
 
         _context.MenuItems.Add(menuItem);
         await _context.SaveChangesAsync();
 
-        return Ok(new MenuItemDto(menuItem.Id, menuItem.Name, menuItem.Description, menuItem.Price, menuItem.IsActive));
+        return Ok(new MenuItemDto(menuItem.Id, menuItem.Name, menuItem.Description, menuItem.Price, menuItem.IsActive, menuItem.ImageUrl));
     }
 
     private List<Dictionary<string, string>> ParseCsv(string content)

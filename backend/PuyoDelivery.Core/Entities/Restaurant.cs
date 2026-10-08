@@ -24,6 +24,10 @@ public class Restaurant : BaseEntity
     /// <summary>Opcional. URL/imagen del código QR de pago. Si existe, el cliente puede pagar por transferencia; si no, solo efectivo.</summary>
     public string? PaymentQrUrl { get; set; }
 
+    /// <summary>Opcional. URL del logo/imagen del restaurante.</summary>
+    public string? LogoUrl { get; set; }
+
     public ICollection<MenuItem> MenuItems { get; set; } = new List<MenuItem>();
     public ICollection<RestaurantAdmin> Admins { get; set; } = new List<RestaurantAdmin>();
+    public ICollection<RestaurantClaim> Claims { get; set; } = new List<RestaurantClaim>();
 }

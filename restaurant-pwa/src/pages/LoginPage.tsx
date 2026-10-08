@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
@@ -17,7 +17,11 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      navigate('/riders');
+      const saved = localStorage.getItem('user');
+      const user = saved ? JSON.parse(saved) : null;
+      if (user?.role === 'RestaurantAdmin') navigate('/restaurant/dashboard');
+      else if (user?.role === 'CompanyAdmin' || user?.role === 'SuperAdmin') navigate('/riders');
+      else navigate('/login');
     } catch {
       setError('Credenciales inválidas. Verifica tu email y contraseña.');
     } finally {
@@ -72,8 +76,19 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 text-center text-sm text-gray-500">
-          Panel de administración de riders
+        <div className="mt-6 text-center text-sm text-gray-500 space-y-2">
+          <p>
+            ¿Tienes un restaurante?{' '}
+            <Link to="/register-restaurant" className="text-blue-600 hover:underline">
+              Registrar restaurante
+            </Link>
+          </p>
+          <p>
+            ¿Tu restaurante ya está en la plataforma?{' '}
+            <Link to="/claim-restaurant" className="text-blue-600 hover:underline">
+              Reclamar restaurante
+            </Link>
+          </p>
         </div>
       </div>
     </div>

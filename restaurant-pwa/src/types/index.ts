@@ -9,6 +9,7 @@ export interface Restaurant {
   menuSummary?: string;
   isActive: boolean;
   source: string;
+  logoUrl?: string;
 }
 
 export interface MenuItem {
@@ -17,6 +18,26 @@ export interface MenuItem {
   description?: string;
   price: number;
   isActive: boolean;
+  imageUrl?: string;
+}
+
+export interface ClaimableRestaurant {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  logoUrl?: string;
+}
+
+export interface RestaurantClaim {
+  id: string;
+  restaurantId: string;
+  restaurantName: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  status: string;
+  submittedAt: string;
 }
 
 export interface Rider {
