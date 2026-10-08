@@ -68,11 +68,13 @@ class ApiService {
       headers: await _headers(),
       body: jsonEncode(body),
     );
+    if (response.statusCode == 204) return <String, dynamic>{};
     return _handleResponse(response, path);
   }
 
   Map<String, dynamic> _handleResponse(http.Response response, String path) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (response.body.isEmpty) return <String, dynamic>{};
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
     debugPrint('API error ${response.request?.method ?? ''} $path -> ${response.statusCode}: ${response.body}');

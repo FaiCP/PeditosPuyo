@@ -48,38 +48,56 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _toggleOnline() async {
+    if (_riderId.isEmpty) {
+      _snack('No se encontró el ID del rider. Cierra sesión y vuelve a ingresar.');
+      return;
+    }
+
     final newStatus = !_isOnline;
-    setState(() => _isOnline = newStatus);
 
     try {
-      if (_riderId.isNotEmpty) {
-        await _apiService.put('/riders/$_riderId/status', {
-          'isOnline': newStatus,
-        });
-      }
+      await _apiService.put('/riders/$_riderId/status', {
+        'isOnline': newStatus,
+      });
+    } catch (e) {
+      debugPrint('Error toggling online status: $e');
+      _snack('No se pudo cambiar el estado: $e');
+      return;
+    }
 
-      if (newStatus) {
+    setState(() => _isOnline = newStatus);
+
+    if (newStatus) {
+      try {
         await _locationService.startTracking(_riderId);
+      } catch (e) {
+        debugPrint('Error starting location: $e');
+      }
+      try {
         await _signalRService.connect(_riderId);
         _listenToSignalR();
-        await FirebaseMessagingService.refreshToken();
-        _notificationService.showNotification(
-          'En línea',
-          'Estás recibiendo nuevos pedidos',
-        );
-        await _checkPendingOffers();
-      } else {
-        _locationService.stopTracking();
-        _signalRService.disconnect();
-        _signalRSubscription?.cancel();
-        _notificationService.showNotification(
-          'Fuera de línea',
-          'No recibirás nuevos pedidos',
-        );
+      } catch (e) {
+        debugPrint('Error connecting SignalR: $e');
+        _snack('No se pudo conectar el canal de ofertas, pero puedes revisar manualmente.');
       }
-    } catch (e) {
-      debugPrint('Error toggling online: $e');
-      setState(() => _isOnline = !newStatus);
+      try {
+        await FirebaseMessagingService.refreshToken();
+      } catch (e) {
+        debugPrint('Error refreshing FCM token: $e');
+      }
+      _notificationService.showNotification(
+        'En línea',
+        'Estás recibiendo nuevos pedidos',
+      );
+      await _checkPendingOffers();
+    } else {
+      _locationService.stopTracking();
+      _signalRService.disconnect();
+      _signalRSubscription?.cancel();
+      _notificationService.showNotification(
+        'Fuera de línea',
+        'No recibirás nuevos pedidos',
+      );
     }
   }
 
