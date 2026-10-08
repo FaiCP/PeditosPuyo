@@ -9,9 +9,12 @@ import 'services/firebase_messaging_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await FirebaseMessagingService.initialize();
+    // En emuladores sin Google Play Services Firebase puede colgarse;
+    // usamos timeout para que la app siempre arranque.
+    await FirebaseMessagingService.initialize()
+        .timeout(const Duration(seconds: 4));
   } catch (e) {
-    debugPrint('Firebase init error: $e');
+    debugPrint('Firebase init error/timeout: $e');
   }
   runApp(const RiderApp());
 }

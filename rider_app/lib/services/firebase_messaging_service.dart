@@ -20,9 +20,13 @@ class FirebaseMessagingService {
   static final _messaging = FirebaseMessaging.instance;
   static final _api = ApiService();
   static final _notifications = NotificationService();
+  static bool _initialized = false;
+
+  static bool get isInitialized => _initialized;
 
   static Future<void> initialize() async {
     await Firebase.initializeApp();
+    _initialized = true;
 
     // Permisos
     final settings = await _messaging.requestPermission(
@@ -61,9 +65,13 @@ class FirebaseMessagingService {
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   }
 
-  static Future<void> refreshToken() async => _updateToken();
+  static Future<void> refreshToken() async {
+    if (!_initialized) return;
+    await _updateToken();
+  }
 
   static Future<void> _updateToken() async {
+    if (!_initialized) return;
     try {
       final token = await _messaging.getToken();
       if (token != null && token.isNotEmpty) {
