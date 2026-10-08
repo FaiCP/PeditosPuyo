@@ -59,17 +59,23 @@ public class AuthController : ControllerBase
         return Ok(new LoginResponse(token, user.Id, user.Role, user.TenantId, user.FullName, user.Email!, companyId, restaurantId, riderId));
     }
 
+    private static readonly string[] AllowedSelfRegisterRoles = { "RestaurantAdmin", "Rider" };
+
     [HttpPost("register")]
     [AllowAnonymous]
     public async Task<ActionResult<LoginResponse>> Register([FromBody] RegisterRequest request)
     {
+        var role = request.Role?.Trim() ?? string.Empty;
+        if (!AllowedSelfRegisterRoles.Contains(role))
+            return BadRequest(new { isSuccess = false, error = "Rol no válido para registro público" });
+
         var user = new ApplicationUser
         {
             UserName = request.Email,
             Email = request.Email,
             FullName = request.FullName,
             Phone = request.Phone,
-            Role = request.Role
+            Role = role
         };
 
         var result = await _userManager.CreateAsync(user, request.Password);
@@ -81,33 +87,7 @@ public class AuthController : ControllerBase
         Guid? riderId = null;
 
         // Crear perfil según rol
-        if (request.Role == "CompanyAdmin")
-        {
-            var company = new DeliveryCompany
-            {
-                TenantId = Guid.NewGuid(),
-                Name = $"{request.FullName}'s Company",
-                Slug = request.Email.Split('@')[0].ToLower()
-            };
-            _context.DeliveryCompanies.Add(company);
-            await _context.SaveChangesAsync();
-
-            var admin = new CompanyAdmin
-            {
-                TenantId = company.TenantId,
-                UserId = Guid.Parse(user.Id),
-                CompanyId = company.Id,
-                FullName = request.FullName,
-                Email = request.Email,
-                Phone = request.Phone
-            };
-            _context.CompanyAdmins.Add(admin);
-            user.TenantId = company.TenantId;
-            companyId = company.Id;
-
-            await _userManager.UpdateAsync(user);
-        }
-        else if (request.Role == "RestaurantAdmin")
+        if (request.Role == "RestaurantAdmin")
         {
             var restaurant = new Restaurant
             {

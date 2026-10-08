@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using PuyoDelivery.API.Hubs;
 using PuyoDelivery.Core.Dtos;
 using PuyoDelivery.Core.Entities;
 using PuyoDelivery.Infrastructure.Data;
@@ -15,11 +17,22 @@ public class PublicOrdersController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly OrderService _orders;
+    private readonly IHubContext<RiderHub> _riderHub;
+    private readonly IHubContext<RestaurantHub> _restaurantHub;
+    private readonly IHubContext<CompanyHub> _companyHub;
 
-    public PublicOrdersController(ApplicationDbContext context, OrderService orders)
+    public PublicOrdersController(
+        ApplicationDbContext context,
+        OrderService orders,
+        IHubContext<RiderHub> riderHub,
+        IHubContext<RestaurantHub> restaurantHub,
+        IHubContext<CompanyHub> companyHub)
     {
         _context = context;
         _orders = orders;
+        _riderHub = riderHub;
+        _restaurantHub = restaurantHub;
+        _companyHub = companyHub;
     }
 
     private async Task<CustomerToken?> ResolveActiveToken(string token)
@@ -133,6 +146,7 @@ public class PublicOrdersController : ControllerBase
         var order = await _context.Orders
             .IgnoreQueryFilters()
             .Include(o => o.Items)
+            .Include(o => o.Offers)
             .Include(o => o.Restaurant)
             .Include(o => o.AssignedRider)
             .FirstOrDefaultAsync(o => o.Id == orderId && o.CustomerTokenId == ct.Id);
@@ -141,10 +155,50 @@ public class PublicOrdersController : ControllerBase
         if (order.Status is OrderStatus.PickedUp or OrderStatus.InTransit or OrderStatus.Delivered)
             return BadRequest(new { isSuccess = false, error = "El pedido ya está en camino y no puede cancelarse" });
 
+        var now = DateTime.UtcNow;
         order.Status = OrderStatus.Cancelled;
         order.CancelReason = OrderCancelReason.CustomerCancelled;
-        order.CancelledAt = DateTime.UtcNow;
+        order.CancelledAt = now;
         _orders.LogEvent(order.Id, order.TenantId, OrderActorType.Customer, "Cliente canceló el pedido");
+
+        // F2.10: liberar rider/oferta si el pedido aún no había sido entregado.
+        var pendingOffer = order.Offers.FirstOrDefault(o => o.Status == RiderOfferStatus.Pending);
+        if (pendingOffer != null)
+        {
+            pendingOffer.Status = RiderOfferStatus.Expired;
+            pendingOffer.RespondedAt = now;
+        }
+
+        var riderId = order.AssignedRiderId ?? pendingOffer?.RiderId;
+        if (riderId.HasValue)
+        {
+            var excludeOfferId = pendingOffer?.Id ?? Guid.Empty;
+            var stillBusy = await _context.RiderOffers.IgnoreQueryFilters().AnyAsync(o =>
+                o.RiderId == riderId.Value && o.Id != excludeOfferId && o.Status == RiderOfferStatus.Pending);
+            var hasActiveOrder = await _context.Orders.IgnoreQueryFilters().AnyAsync(o =>
+                o.Id != order.Id &&
+                o.AssignedRiderId == riderId.Value &&
+                (o.Status == OrderStatus.RiderAccepted || o.Status == OrderStatus.ReadyForPickup
+                 || o.Status == OrderStatus.PickedUp || o.Status == OrderStatus.InTransit));
+
+            if (!stillBusy && !hasActiveOrder)
+            {
+                var rider = await _context.Riders.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == riderId.Value);
+                if (rider != null) rider.IsBusy = false;
+            }
+
+            await _riderHub.Clients.Group($"rider-{riderId}")
+                .SendAsync("orderCancelled", new { orderId = order.Id, reason = order.CancelDetail });
+        }
+
+        if (order.RestaurantId.HasValue)
+        {
+            await _restaurantHub.Clients.Group($"restaurant-{order.RestaurantId}")
+                .SendAsync("orderCancelled", new { orderId = order.Id, reason = order.CancelDetail });
+        }
+
+        await _companyHub.Clients.Group($"company-{order.TenantId}")
+            .SendAsync("orderCancelled", new { orderId = order.Id, reason = order.CancelDetail });
 
         await _context.SaveChangesAsync();
         return NoContent();

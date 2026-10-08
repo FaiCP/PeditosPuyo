@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PuyoDelivery.API.Controllers;
+using PuyoDelivery.API.Hubs;
 using PuyoDelivery.Core.Dtos;
 using PuyoDelivery.Core.Entities;
 using PuyoDelivery.Infrastructure.Data;
@@ -20,7 +21,12 @@ public class PublicOrdersControllerTests : IDisposable
     private PublicOrdersController NewController()
     {
         var ctx = NewContext();
-        return new PublicOrdersController(ctx, new OrderService(ctx));
+        return new PublicOrdersController(
+            ctx,
+            new OrderService(ctx),
+            MockHub.Create<RiderHub>().Object,
+            MockHub.Create<RestaurantHub>().Object,
+            MockHub.Create<CompanyHub>().Object);
     }
 
     public void Dispose()
@@ -254,6 +260,81 @@ public class PublicOrdersControllerTests : IDisposable
         var saved = ctx.Orders.IgnoreQueryFilters().Single(o => o.Id == id);
         saved.Status.Should().Be(OrderStatus.Cancelled);
         saved.CancelReason.Should().Be(OrderCancelReason.CustomerCancelled);
+    }
+
+    [Fact]
+    public async Task Cancel_WithPendingOffer_ExpiresOfferAndFreesRider()
+    {
+        var (r, token) = await SeedAsync();
+        var company = TestData.CreateCompany(r.TenantId);
+        var rider = TestData.CreateRider(company, isOnline: true, isBusy: true);
+        using (var ctx = NewContext())
+        {
+            ctx.DeliveryCompanies.Add(company);
+            ctx.Riders.Add(rider);
+            await ctx.SaveChangesAsync();
+        }
+
+        var created = await NewController().CreateOrder(token.Token, RestaurantOrder(r, token));
+        var id = ((OrderTrackingDto)((OkObjectResult)created.Result!).Value!).Id;
+
+        using (var ctx = NewContext())
+        {
+            var order = ctx.Orders.IgnoreQueryFilters().Single(o => o.Id == id);
+            ctx.RiderOffers.Add(new RiderOffer
+            {
+                TenantId = order.TenantId,
+                OrderId = order.Id,
+                RiderId = rider.Id,
+                Status = RiderOfferStatus.Pending,
+                AttemptNumber = 1,
+                NotifyCount = 0,
+                LastNotifiedAt = DateTime.UtcNow,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(2)
+            });
+            await ctx.SaveChangesAsync();
+        }
+
+        var result = await NewController().Cancel(token.Token, id);
+        result.Should().BeOfType<NoContentResult>();
+
+        using var ctx2 = NewContext();
+        var offer = ctx2.RiderOffers.IgnoreQueryFilters().Single(o => o.OrderId == id);
+        offer.Status.Should().Be(RiderOfferStatus.Expired);
+        var savedRider = ctx2.Riders.IgnoreQueryFilters().Single(r => r.Id == rider.Id);
+        savedRider.IsBusy.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Cancel_AfterRiderAccepted_FreesRider()
+    {
+        var (r, token) = await SeedAsync();
+        var company = TestData.CreateCompany(r.TenantId);
+        var rider = TestData.CreateRider(company, isOnline: true, isBusy: true);
+        using (var ctx = NewContext())
+        {
+            ctx.DeliveryCompanies.Add(company);
+            ctx.Riders.Add(rider);
+            await ctx.SaveChangesAsync();
+        }
+
+        var created = await NewController().CreateOrder(token.Token, RestaurantOrder(r, token));
+        var id = ((OrderTrackingDto)((OkObjectResult)created.Result!).Value!).Id;
+
+        using (var ctx = NewContext())
+        {
+            var order = ctx.Orders.IgnoreQueryFilters().Single(o => o.Id == id);
+            order.Status = OrderStatus.RiderAccepted;
+            order.AssignedRiderId = rider.Id;
+            await ctx.SaveChangesAsync();
+        }
+
+        var result = await NewController().Cancel(token.Token, id);
+        result.Should().BeOfType<NoContentResult>();
+
+        using var ctx2 = NewContext();
+        var savedRider = ctx2.Riders.IgnoreQueryFilters().Single(r => r.Id == rider.Id);
+        savedRider.IsBusy.Should().BeFalse();
     }
 
     [Fact]

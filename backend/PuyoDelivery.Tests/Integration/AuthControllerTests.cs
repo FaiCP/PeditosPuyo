@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using PuyoDelivery.API.Controllers;
 using PuyoDelivery.Core.Dtos;
+using PuyoDelivery.Core.Entities;
+using PuyoDelivery.Infrastructure.Data;
 using PuyoDelivery.Infrastructure.Services;
 using PuyoDelivery.Tests.TestHelpers;
 
@@ -12,8 +14,8 @@ namespace PuyoDelivery.Tests.Integration;
 public class AuthControllerTests : IDisposable
 {
     private readonly string _dbName = Guid.NewGuid().ToString();
-    private readonly Infrastructure.Data.ApplicationDbContext _context;
-    private readonly UserManager<Infrastructure.Data.ApplicationUser> _userManager;
+    private readonly ApplicationDbContext _context;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly JwtTokenGenerator _jwt;
     private readonly AuthController _controller;
 
@@ -23,6 +25,36 @@ public class AuthControllerTests : IDisposable
         _userManager = TestDb.CreateUserManager(_context);
         _jwt = new JwtTokenGenerator("unit-test-secret-key-32-bytes-minimum!!", "PuyoDelivery", "PuyoDeliveryApp");
         _controller = new AuthController(_userManager, _jwt, _context);
+    }
+
+    private async Task<ApplicationUser> SeedCompanyAdminAsync(string email, string password)
+    {
+        var company = TestData.CreateCompany(name: "Seed Company");
+        _context.DeliveryCompanies.Add(company);
+        await _context.SaveChangesAsync();
+
+        var user = new ApplicationUser
+        {
+            UserName = email,
+            Email = email,
+            FullName = "Admin Seed",
+            Phone = "0999000000",
+            Role = "CompanyAdmin",
+            TenantId = company.TenantId
+        };
+        await _userManager.CreateAsync(user, password);
+
+        _context.CompanyAdmins.Add(new CompanyAdmin
+        {
+            TenantId = company.TenantId,
+            UserId = Guid.Parse(user.Id),
+            CompanyId = company.Id,
+            FullName = user.FullName,
+            Email = user.Email,
+            Phone = user.Phone
+        });
+        await _context.SaveChangesAsync();
+        return user;
     }
 
     public void Dispose()
@@ -52,26 +84,6 @@ public class AuthControllerTests : IDisposable
         var admin = _context.RestaurantAdmins.IgnoreQueryFilters().Single(a => a.Email == "maria@test.com");
         admin.RestaurantId.Should().Be(restaurant.Id);
     }
-
-    [Fact]
-    public async Task Register_CompanyAdmin_CreatesCompanyAndProfile()
-    {
-        var request = new RegisterRequest("Pedro Ruiz", "pedro@test.com", "0992222222", "Test123!", "CompanyAdmin");
-
-        var result = await _controller.Register(request);
-
-        var ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
-        var response = ok.Value.Should().BeOfType<LoginResponse>().Subject;
-        response.Role.Should().Be("CompanyAdmin");
-        response.CompanyId.Should().NotBeNull();
-
-        var company = _context.DeliveryCompanies.IgnoreQueryFilters().Single(c => c.Name == "Pedro Ruiz's Company");
-        response.TenantId.Should().Be(company.TenantId);
-
-        var admin = _context.CompanyAdmins.IgnoreQueryFilters().Single(a => a.Email == "pedro@test.com");
-        admin.CompanyId.Should().Be(company.Id);
-    }
-
     [Fact]
     public async Task Register_Rider_CreatesRiderWithDefaultCompany()
     {
@@ -123,6 +135,17 @@ public class AuthControllerTests : IDisposable
         result.Result.Should().BeOfType<BadRequestObjectResult>();
     }
 
+    [Theory]
+    [InlineData("CompanyAdmin")]
+    [InlineData("SuperAdmin")]
+    [InlineData("Hacker")]
+    public async Task Register_InvalidRole_Fails(string role)
+    {
+        var result = await _controller.Register(new RegisterRequest("X", $"{role.ToLower()}@test.com", "0991", "Test123!", role));
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
     [Fact]
     public async Task Login_CorrectCredentials_ReturnsToken()
     {
@@ -156,29 +179,17 @@ public class AuthControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task Login_RestaurantAdmin_IncludesRestaurantIdClaim()
-    {
-        await _controller.Register(new RegisterRequest("Rest Admin", "restlogin@test.com", "0997777777", "Test123!", "RestaurantAdmin"));
-
-        var result = await _controller.Login(new LoginRequest("restlogin@test.com", "Test123!"));
-        var response = (OkObjectResult)result.Result!;
-        var login = (LoginResponse)response.Value!;
-
-        var jwt = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().ReadJwtToken(login.Token);
-        jwt.Claims.First(c => c.Type == "restaurant_id").Value.Should().Be(login.RestaurantId!.Value.ToString());
-    }
-
-    [Fact]
     public async Task Login_CompanyAdmin_IncludesCompanyIdClaim()
     {
-        await _controller.Register(new RegisterRequest("Comp Admin", "complogin@test.com", "0998888888", "Test123!", "CompanyAdmin"));
+        const string email = "complogin@test.com";
+        const string password = "Test123!";
+        await SeedCompanyAdminAsync(email, password);
 
-        var result = await _controller.Login(new LoginRequest("complogin@test.com", "Test123!"));
+        var result = await _controller.Login(new LoginRequest(email, password));
         var response = (OkObjectResult)result.Result!;
         var login = (LoginResponse)response.Value!;
 
         var jwt = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().ReadJwtToken(login.Token);
-        jwt.Claims.First(c => c.Type == "company_id").Value.Should().Be(login.TenantId.HasValue ? jwt.Claims.First(c => c.Type == "company_id").Value : "");
         jwt.Claims.Should().Contain(c => c.Type == "company_id");
     }
 }

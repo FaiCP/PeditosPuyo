@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PuyoDelivery.Core.Dtos;
+using PuyoDelivery.Core.Entities;
 using PuyoDelivery.Infrastructure.Data;
 
 namespace PuyoDelivery.API.Controllers;
@@ -12,10 +14,12 @@ namespace PuyoDelivery.API.Controllers;
 public class CompaniesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly UserManager<ApplicationUser> _userManager;
 
-    public CompaniesController(ApplicationDbContext context)
+    public CompaniesController(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
     {
         _context = context;
+        _userManager = userManager;
     }
 
     [HttpGet]
@@ -84,5 +88,53 @@ public class CompaniesController : ControllerBase
         _context.DeliveryCompanies.Remove(company);
         await _context.SaveChangesAsync();
         return NoContent();
+    }
+
+    [HttpPost("{id:guid}/admins")]
+    public async Task<ActionResult<CompanyAdminDto>> CreateAdmin(Guid id, [FromBody] CreateCompanyAdminRequest request)
+    {
+        var company = await _context.DeliveryCompanies.FindAsync(id);
+        if (company == null) return NotFound(new { isSuccess = false, error = "Empresa no encontrada" });
+
+        var existing = await _userManager.FindByEmailAsync(request.Email);
+        if (existing != null)
+            return BadRequest(new { isSuccess = false, error = "El email ya está registrado" });
+
+        var user = new ApplicationUser
+        {
+            UserName = request.Email,
+            Email = request.Email,
+            FullName = request.FullName,
+            Phone = request.Phone,
+            Role = "CompanyAdmin",
+            TenantId = company.TenantId
+        };
+
+        var result = await _userManager.CreateAsync(user, request.Password);
+        if (!result.Succeeded)
+            return BadRequest(new { isSuccess = false, error = string.Join(", ", result.Errors.Select(e => e.Description)) });
+
+        var admin = new CompanyAdmin
+        {
+            TenantId = company.TenantId,
+            UserId = Guid.Parse(user.Id),
+            CompanyId = company.Id,
+            FullName = request.FullName,
+            Email = request.Email,
+            Phone = request.Phone
+        };
+        _context.CompanyAdmins.Add(admin);
+        await _context.SaveChangesAsync();
+
+        return CreatedAtAction(nameof(GetAdminById), new { id = admin.Id },
+            new CompanyAdminDto(admin.Id, user.Id, admin.CompanyId, admin.FullName, admin.Email, admin.Phone));
+    }
+
+    [HttpGet("admins/{id:guid}", Name = nameof(GetAdminById))]
+    public async Task<ActionResult<CompanyAdminDto>> GetAdminById(Guid id)
+    {
+        var admin = await _context.CompanyAdmins.FindAsync(id);
+        if (admin == null) return NotFound();
+        return Ok(new CompanyAdminDto(admin.Id, admin.UserId.ToString(), admin.CompanyId, admin.FullName, admin.Email, admin.Phone));
     }
 }

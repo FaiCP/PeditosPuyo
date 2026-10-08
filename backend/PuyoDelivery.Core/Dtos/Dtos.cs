@@ -8,6 +8,8 @@ public record LoginResponse(string Token, string UserId, string Role, Guid? Tena
 public record CompanyDto(Guid Id, string Name, string Slug, decimal MonthlyRatePerDriver, int RiderLimit, bool IsActive);
 public record CreateCompanyRequest(string Name, string Slug, decimal MonthlyRatePerDriver, int RiderLimit);
 public record UpdateCompanyRequest(string Name, string Slug, decimal MonthlyRatePerDriver, int RiderLimit, bool IsActive);
+public record CompanyAdminDto(Guid Id, string UserId, Guid CompanyId, string FullName, string Email, string Phone);
+public record CreateCompanyAdminRequest(string FullName, string Email, string Phone, string Password);
 
 public record SubscriptionDto(Guid Id, Guid CompanyId, string PlanName, decimal PricePerMonth, int RiderLimit, string Status, DateTime ExpiresAt);
 public record CreateSubscriptionRequest(Guid CompanyId, string PlanName, decimal PricePerMonth, int RiderLimit, int Months);
