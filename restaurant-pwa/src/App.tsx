@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
@@ -6,6 +6,7 @@ import RegisterRestaurantPage from './pages/RegisterRestaurantPage';
 import ClaimRestaurantPage from './pages/ClaimRestaurantPage';
 import RestaurantDashboardPage from './pages/RestaurantDashboardPage';
 import RestaurantClaimsPage from './pages/RestaurantClaimsPage';
+import LandingPage from './pages/LandingPage';
 import RidersPage from './pages/RidersPage';
 import CustomerLayout from './pages/customer/CustomerLayout';
 import CustomerCatalogPage from './pages/customer/CustomerCatalogPage';
@@ -79,7 +80,11 @@ function App() {
           />
           <Route
             path="/"
-            element={<Navigate to="/login" replace />}
+            element={
+              <Layout>
+                <LandingPage />
+              </Layout>
+            }
           />
         </Routes>
       </Router>

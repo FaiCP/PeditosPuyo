@@ -32,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _riderId = '';
   final Set<String> _dialogOpenOfferIds = {};
   StreamSubscription? _signalRSubscription;
+  Timer? _offerPoll;
 
   @override
   void initState() {
@@ -67,38 +68,42 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() => _isOnline = newStatus);
 
-    if (newStatus) {
-      try {
-        await _locationService.startTracking(_riderId);
-      } catch (e) {
-        debugPrint('Error starting location: $e');
+      if (newStatus) {
+        try {
+          await _locationService.startTracking(_riderId);
+        } catch (e) {
+          debugPrint('Error starting location: $e');
+        }
+        try {
+          await _signalRService.connect(_riderId);
+          _listenToSignalR();
+        } catch (e) {
+          debugPrint('Error connecting SignalR: $e');
+          _snack('Canal de ofertas no disponible; se usará consulta periódica.');
+        }
+        // Fallback: consultar ofertas cada 10s aunque SignalR falle.
+        _offerPoll?.cancel();
+        _offerPoll = Timer.periodic(const Duration(seconds: 10), (_) => _checkPendingOffers());
+        try {
+          await FirebaseMessagingService.refreshToken();
+        } catch (e) {
+          debugPrint('Error refreshing FCM token: $e');
+        }
+        _notificationService.showNotification(
+          'En línea',
+          'Estás recibiendo nuevos pedidos',
+        );
+        await _checkPendingOffers();
+      } else {
+        _offerPoll?.cancel();
+        _locationService.stopTracking();
+        _signalRService.disconnect();
+        _signalRSubscription?.cancel();
+        _notificationService.showNotification(
+          'Fuera de línea',
+          'No recibirás nuevos pedidos',
+        );
       }
-      try {
-        await _signalRService.connect(_riderId);
-        _listenToSignalR();
-      } catch (e) {
-        debugPrint('Error connecting SignalR: $e');
-        _snack('No se pudo conectar el canal de ofertas, pero puedes revisar manualmente.');
-      }
-      try {
-        await FirebaseMessagingService.refreshToken();
-      } catch (e) {
-        debugPrint('Error refreshing FCM token: $e');
-      }
-      _notificationService.showNotification(
-        'En línea',
-        'Estás recibiendo nuevos pedidos',
-      );
-      await _checkPendingOffers();
-    } else {
-      _locationService.stopTracking();
-      _signalRService.disconnect();
-      _signalRSubscription?.cancel();
-      _notificationService.showNotification(
-        'Fuera de línea',
-        'No recibirás nuevos pedidos',
-      );
-    }
   }
 
   void _listenToSignalR() {
@@ -202,6 +207,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _signalRSubscription?.cancel();
+    _offerPoll?.cancel();
     _locationService.stopTracking();
     _signalRService.disconnect();
     super.dispose();
