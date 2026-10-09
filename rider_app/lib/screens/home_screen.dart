@@ -31,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   String _riderId = '';
   final Set<String> _dialogOpenOfferIds = {};
+  final Set<String> _notifiedOfferIds = {};
   StreamSubscription? _signalRSubscription;
   Timer? _offerPoll;
 
@@ -134,10 +135,13 @@ class _HomeScreenState extends State<HomeScreen> {
         if (_dialogOpenOfferIds.contains(offer.offerId)) continue;
         _dialogOpenOfferIds.add(offer.offerId);
 
-        _notificationService.showNotification(
-          'Nuevo ${offer.typeLabel.toLowerCase()}',
-          '${offer.originName} → ${offer.destinationAddress}',
-        );
+        if (!_notifiedOfferIds.contains(offer.offerId)) {
+          _notifiedOfferIds.add(offer.offerId);
+          _notificationService.showNotification(
+            'Nuevo ${offer.typeLabel.toLowerCase()}',
+            '${offer.originName} → ${offer.destinationAddress}',
+          );
+        }
 
         if (!mounted) return;
         final result = await showDialog<String>(
@@ -147,6 +151,8 @@ class _HomeScreenState extends State<HomeScreen> {
         );
 
         _dialogOpenOfferIds.remove(offer.offerId);
+        _notifiedOfferIds.remove(offer.offerId);
+        await _notificationService.cancelAll();
 
         if (result == 'accepted') {
           await _acceptOffer(offer);
@@ -154,6 +160,9 @@ class _HomeScreenState extends State<HomeScreen> {
           await _rejectOffer(offer);
         }
       }
+
+      // Limpiar IDs de ofertas que ya no vienen del backend.
+      _notifiedOfferIds.removeWhere((id) => !offers.any((o) => o.offerId == id));
     } catch (e) {
       debugPrint('Error loading offers: $e');
     }

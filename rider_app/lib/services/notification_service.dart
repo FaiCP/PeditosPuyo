@@ -66,4 +66,14 @@ class NotificationService {
       debugPrint('Error showing notification: $e');
     }
   }
+
+  Future<void> cancelAll() async {
+    if (!_initialized) return;
+    try {
+      await _notifications.cancelAll();
+      debugPrint('Notifications cancelled');
+    } catch (e) {
+      debugPrint('Error cancelling notifications: $e');
+    }
+  }
 }

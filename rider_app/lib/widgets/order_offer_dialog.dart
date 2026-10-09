@@ -35,7 +35,8 @@ class _OrderOfferDialogState extends State<OrderOfferDialog> {
   Future<void> _vibrate() async {
     try {
       if (await Vibration.hasVibrator()) {
-        Vibration.vibrate(pattern: [0, 500, 300, 500], repeat: 1);
+        // -1 = no repetir; vibración única de alerta.
+        Vibration.vibrate(pattern: [0, 500, 300, 500], repeat: -1);
       }
     } catch (e) {
       debugPrint('Vibration error: $e');
@@ -45,6 +46,9 @@ class _OrderOfferDialogState extends State<OrderOfferDialog> {
   @override
   void dispose() {
     _timer?.cancel();
+    try {
+      Vibration.cancel();
+    } catch (_) {}
     super.dispose();
   }
 

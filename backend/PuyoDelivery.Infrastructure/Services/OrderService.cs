@@ -187,6 +187,7 @@ public class OrderService
             order.PaymentMethod.ToString().ToLowerInvariant(),
             restaurant?.PaymentQrUrl != null,
             restaurant?.PaymentQrUrl,
+            order.PickupCode,
             order.DeliveryCode,
             rider?.FullName,
             rider?.CurrentLocation?.Y,

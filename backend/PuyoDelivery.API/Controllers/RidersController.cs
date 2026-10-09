@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PuyoDelivery.Core.Dtos;
+using PuyoDelivery.Core.Entities;
 using PuyoDelivery.Core.Interfaces;
 using PuyoDelivery.Infrastructure.Data;
 
@@ -157,6 +158,37 @@ public class RidersController : ControllerBase
         if (rider.TenantId != _tenant.TenantId) return Forbid();
 
         _context.Riders.Remove(rider);
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/release")]
+    [Authorize(Roles = "CompanyAdmin")]
+    public async Task<IActionResult> Release(Guid id)
+    {
+        var rider = await _context.Riders.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == id);
+        if (rider == null) return NotFound();
+        if (rider.TenantId != _tenant.TenantId) return Forbid();
+
+        var hasActiveOrder = await _context.Orders.AnyAsync(o =>
+            o.AssignedRiderId == id &&
+            (o.Status == OrderStatus.RiderAccepted || o.Status == OrderStatus.ReadyForPickup
+             || o.Status == OrderStatus.PickedUp || o.Status == OrderStatus.InTransit));
+        if (hasActiveOrder)
+            return BadRequest(new { isSuccess = false, error = "El rider tiene un pedido activo; no se puede liberar" });
+
+        var pendingOffers = await _context.RiderOffers
+            .Where(o => o.RiderId == id && o.Status == RiderOfferStatus.Pending)
+            .ToListAsync();
+
+        var now = DateTime.UtcNow;
+        foreach (var offer in pendingOffers)
+        {
+            offer.Status = RiderOfferStatus.Expired;
+            offer.RespondedAt = now;
+        }
+
+        rider.IsBusy = false;
         await _context.SaveChangesAsync();
         return NoContent();
     }

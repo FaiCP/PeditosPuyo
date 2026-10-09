@@ -36,6 +36,10 @@ export default function CustomerOrderPage() {
   if (!order) return <div className="cust-skeleton h-48 mt-6" />;
 
   const info = STATUS_INFO[order.status] ?? { es: order.status, badge: 'cust-badge-wait', step: -1 };
+  const showPickupCode =
+    order.pickupCode &&
+    (order.type === 'compra' || order.type === 'encargo') &&
+    (order.status === 'ReadyForPickup' || order.status === 'PickedUp' || order.status === 'InTransit');
   const showCode = order.deliveryCode && info.step >= 3;
 
   const cancel = async () => {
@@ -65,10 +69,19 @@ export default function CustomerOrderPage() {
         </p>
       </div>
 
+      {showPickupCode && (
+        <div className="cust-card mt-5 p-5">
+          <p className="text-xs uppercase tracking-widest font-bold" style={{ color: 'var(--cream-dim)' }}>
+            Código de recolección — dáselo al rider en el origen
+          </p>
+          <p className="cust-code my-2">{order.pickupCode}</p>
+        </div>
+      )}
+
       {showCode && (
         <div className="cust-card mt-5 p-5">
           <p className="text-xs uppercase tracking-widest font-bold" style={{ color: 'var(--cream-dim)' }}>
-            Tu código de entrega — dáselo al rider
+            Tu código de entrega — dáselo al rider al recibir
           </p>
           <p className="cust-code my-2">{order.deliveryCode}</p>
         </div>

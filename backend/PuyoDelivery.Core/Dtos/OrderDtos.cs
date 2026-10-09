@@ -44,6 +44,7 @@ public record OrderTrackingDto(
     string PaymentMethod,
     bool HasPaymentQr,
     string? PaymentQrUrl,
+    string? PickupCode,
     string? DeliveryCode,
     string? RiderName,
     double? RiderLat,

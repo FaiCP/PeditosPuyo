@@ -241,38 +241,26 @@ class _ActiveOrdersScreenState extends State<ActiveOrdersScreen> {
 
       case 'ReadyForPickup':
         return [
-          if (o.pickupCode != null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0D2318),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: [
-                  const Text('DILE ESTE CÓDIGO EN EL ORIGEN',
-                      style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11,
-                          letterSpacing: 1.5,
-                          fontWeight: FontWeight.bold)),
-                  Text(o.pickupCode!,
-                      style: const TextStyle(
-                          color: Colors.amberAccent,
-                          fontSize: 34,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 6)),
-                ],
-              ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.orange.shade200),
             ),
+            child: const Text(
+              'Pídele el código de recolección al restaurante o cliente en el origen e ingrésalo aquí.',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+          ),
           ElevatedButton.icon(
             onPressed: _busy
                 ? null
                 : () async {
                     final code = await _askCode(context,
-                        length: 6, title: '¿El origen te dio el código de recolección?');
+                        length: 6, title: 'Código de recolección del origen');
                     if (code == null || code.length != 6) return;
                     await _run('Recogido ✓',
                         () => _api.post('/rider/orders/${o.order.id}/pickup', {'code': code}));

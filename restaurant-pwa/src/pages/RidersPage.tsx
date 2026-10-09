@@ -52,6 +52,16 @@ export default function RidersPage() {
     }
   };
 
+  const releaseRider = async (rider: Rider) => {
+    try {
+      await api.post(`/riders/${rider.id}/release`);
+      fetchRiders();
+    } catch (error: any) {
+      console.error('Error releasing rider:', error);
+      setError(error.response?.data?.error ?? 'No se pudo liberar al rider');
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-6">
       <header className="flex justify-between items-center mb-6">
@@ -187,16 +197,26 @@ export default function RidersPage() {
                 )}
               </div>
 
-              <button
-                onClick={() => toggleOnline(rider)}
-                className={`w-full py-2 rounded-lg text-sm font-medium ${
-                  rider.isOnline
-                    ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    : 'bg-green-600 text-white hover:bg-green-700'
-                }`}
-              >
-                {rider.isOnline ? 'Desactivar' : 'Activar'}
-              </button>
+              <div className="space-y-2">
+                <button
+                  onClick={() => toggleOnline(rider)}
+                  className={`w-full py-2 rounded-lg text-sm font-medium ${
+                    rider.isOnline
+                      ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}
+                >
+                  {rider.isOnline ? 'Desactivar' : 'Activar'}
+                </button>
+                {rider.isBusy && (
+                  <button
+                    onClick={() => releaseRider(rider)}
+                    className="w-full py-2 rounded-lg text-sm font-medium bg-orange-100 text-orange-700 hover:bg-orange-200"
+                  >
+                    Liberar (ocupado atascado)
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>

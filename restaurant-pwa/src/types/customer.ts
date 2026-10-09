@@ -72,6 +72,7 @@ export interface OrderTracking {
   paymentMethod: string;
   hasPaymentQr: boolean;
   paymentQrUrl?: string | null;
+  pickupCode?: string | null;
   deliveryCode?: string | null;
   riderName?: string | null;
   riderLat?: number | null;
