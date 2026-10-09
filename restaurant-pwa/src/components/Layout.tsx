@@ -63,6 +63,16 @@ export default function Layout({ children, showNav = true }: LayoutProps) {
                       >
                         Reclamos
                       </Link>
+                      <Link
+                        to="/customer-tokens"
+                        className={`px-3 py-2 rounded-lg text-sm font-medium ${
+                          location.pathname === '/customer-tokens'
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        Link cliente
+                      </Link>
                     </>
                   )}
                   <span className="text-sm text-gray-500 hidden md:inline">

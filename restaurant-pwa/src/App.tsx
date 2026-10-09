@@ -6,6 +6,7 @@ import RegisterRestaurantPage from './pages/RegisterRestaurantPage';
 import ClaimRestaurantPage from './pages/ClaimRestaurantPage';
 import RestaurantDashboardPage from './pages/RestaurantDashboardPage';
 import RestaurantClaimsPage from './pages/RestaurantClaimsPage';
+import CustomerTokensPage from './pages/CustomerTokensPage';
 import LandingPage from './pages/LandingPage';
 import RidersPage from './pages/RidersPage';
 import CustomerLayout from './pages/customer/CustomerLayout';
@@ -67,6 +68,14 @@ function App() {
             element={
               <Layout>
                 <RestaurantClaimsPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/customer-tokens"
+            element={
+              <Layout>
+                <CustomerTokensPage />
               </Layout>
             }
           />
