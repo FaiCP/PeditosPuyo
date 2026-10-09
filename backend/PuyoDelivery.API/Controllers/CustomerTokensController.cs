@@ -50,7 +50,7 @@ public class CustomerTokensController : ControllerBase
         _context.CustomerTokens.Add(entity);
         await _context.SaveChangesAsync();
 
-        var baseUrl = _config["PublicAppBaseUrl"] ?? "https://peditos-puyo.vercel.app";
+        var baseUrl = _config["PublicAppBaseUrl"] ?? "https://restaurant-pwa-eta.vercel.app";
         return Ok(new CustomerTokenDto(entity.Id, entity.Token, entity.Phone, entity.Name, entity.ExpiresAt, $"{baseUrl}/p/{entity.Token}"));
     }
 
