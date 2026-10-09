@@ -104,39 +104,41 @@ export default function CustomerNewOrderPage() {
         {tipo === 'compra' && (
           <div>
             <label className="cust-label">Artículos a comprar *</label>
-            <div className="grid gap-2">
+            <div className="grid gap-3">
               {articulos.map((a, i) => (
-                <div key={i} className="flex gap-2">
+                <div key={i} className="flex flex-col sm:flex-row gap-2">
                   <input
-                    className="cust-input flex-1"
-                    placeholder={`Artículo ${i + 1}`}
+                    className="cust-input flex-[2] min-w-0"
+                    placeholder="¿Qué artículo? (ej: leche 1L)"
                     value={a.name}
                     onChange={(e) => setArt(i, { name: e.target.value })}
                   />
-                  <input
-                    className="cust-input w-16 text-center"
-                    type="number"
-                    min={1}
-                    value={a.quantity}
-                    onChange={(e) => setArt(i, { quantity: Math.max(1, +e.target.value || 1) })}
-                  />
-                  <input
-                    className="cust-input w-24"
-                    placeholder="$ est."
-                    inputMode="decimal"
-                    value={a.price}
-                    onChange={(e) => setArt(i, { price: e.target.value })}
-                  />
-                  {articulos.length > 1 && (
-                    <button
-                      className="px-2 self-center"
-                      style={{ color: 'var(--danger)' }}
-                      onClick={() => setArticulos((arr) => arr.filter((_, j) => j !== i))}
-                      aria-label="Quitar"
-                    >
-                      ✕
-                    </button>
-                  )}
+                  <div className="flex gap-2 shrink-0">
+                    <input
+                      className="cust-input w-14 text-center"
+                      type="number"
+                      min={1}
+                      value={a.quantity}
+                      onChange={(e) => setArt(i, { quantity: Math.max(1, +e.target.value || 1) })}
+                    />
+                    <input
+                      className="cust-input w-24"
+                      placeholder="$ est."
+                      inputMode="decimal"
+                      value={a.price}
+                      onChange={(e) => setArt(i, { price: e.target.value })}
+                    />
+                    {articulos.length > 1 && (
+                      <button
+                        className="px-2 self-center"
+                        style={{ color: 'var(--danger)' }}
+                        onClick={() => setArticulos((arr) => arr.filter((_, j) => j !== i))}
+                        aria-label="Quitar"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
               <button
