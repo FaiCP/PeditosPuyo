@@ -1,6 +1,12 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
 
 body {
   margin: 0;
   font-family: system-ui, -apple-system, sans-serif;
+}
+
+.custom-map-pin {
+  background: transparent !important;
+  border: none !important;
 }

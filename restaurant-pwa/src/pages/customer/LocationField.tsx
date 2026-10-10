@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { coordsFromInput, currentLocation, mapsUrl, type Coords } from '../../utils/coords';
+import MapPicker from './MapPicker';
 
 interface Props {
   label: string;
@@ -43,6 +44,13 @@ export default function LocationField({ label, value, onChange, linkValue = '', 
     }
   };
 
+  const handleMapChange = (c: Coords) => {
+    const raw = `${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}`;
+    setLink(raw);
+    setMsg('');
+    onChange(c, raw);
+  };
+
   return (
     <div>
       <label className="cust-label">{label}</label>
@@ -55,13 +63,21 @@ export default function LocationField({ label, value, onChange, linkValue = '', 
             setLink(e.target.value);
             setMsg('');
           }}
-          placeholder="Pega el link de Google Maps o «lat, lng»"
+          placeholder="Pega el link de Google Maps, «lat, lng» o marca en el mapa"
         />
         <button type="button" className="cust-btn cust-btn-ghost whitespace-nowrap" onClick={detect} disabled={busy}>
           Detectar
         </button>
       </div>
-      <div className="flex items-center gap-3 mt-2 text-sm">
+
+      <div className="mt-3">
+        <MapPicker value={value} onChange={handleMapChange} />
+        <p className="text-[#7d8a7f] text-xs mt-2">
+          Toca el mapa para marcar el punto exacto. También puedes pegar un link de Google Maps arriba.
+        </p>
+      </div>
+
+      <div className="flex items-center gap-3 mt-3 text-sm">
         <button type="button" onClick={useMy} disabled={busy} className="text-[var(--leaf)] font-semibold hover:underline disabled:opacity-50">
           📍 Usar mi ubicación actual
         </button>
